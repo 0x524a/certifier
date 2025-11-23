@@ -634,7 +634,7 @@ func TestValidateCertificateECDSAWithSHA1(t *testing.T) {
 func TestValidateCertificateNotYetValid(t *testing.T) {
 	now := time.Now()
 	future := now.AddDate(1, 0, 0)
-	
+
 	certificate := &x509.Certificate{
 		SerialNumber:       big.NewInt(1),
 		Subject:            pkix.Name{CommonName: "test.com"},
@@ -654,11 +654,11 @@ func TestValidateCertificateNotYetValid(t *testing.T) {
 	if result.Valid {
 		t.Error("Expected validation to fail for not-yet-valid certificate")
 	}
-	
+
 	if result.NotExpired {
 		t.Error("Expected NotExpired to be false for not-yet-valid certificate")
 	}
-	
+
 	hasError := false
 	for _, err := range result.Errors {
 		if err == "certificate is not yet valid" {
@@ -666,7 +666,7 @@ func TestValidateCertificateNotYetValid(t *testing.T) {
 			break
 		}
 	}
-	
+
 	if !hasError {
 		t.Error("Expected error about certificate not being valid yet")
 	}
@@ -676,7 +676,7 @@ func TestValidateCertificateNotYetValid(t *testing.T) {
 func TestValidateCertificateWithAllowExpired(t *testing.T) {
 	now := time.Now()
 	past := now.AddDate(-1, 0, 0)
-	
+
 	certificate := &x509.Certificate{
 		SerialNumber:       big.NewInt(1),
 		Subject:            pkix.Name{CommonName: "test.com"},
@@ -712,15 +712,15 @@ func TestValidateCertificateWithAllowExpired(t *testing.T) {
 // TestValidateCertificateWithCRLAndOCSP tests CRL and OCSP URL extraction
 func TestValidateCertificateWithCRLAndOCSP(t *testing.T) {
 	certificate := &x509.Certificate{
-		SerialNumber:        big.NewInt(1),
-		Subject:             pkix.Name{CommonName: "test.com"},
-		Issuer:              pkix.Name{CommonName: "test.com"},
-		NotBefore:           time.Now(),
-		NotAfter:            time.Now().AddDate(1, 0, 0),
-		SignatureAlgorithm:  x509.SHA256WithRSA,
-		PublicKeyAlgorithm:  x509.RSA,
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "test.com"},
+		Issuer:                pkix.Name{CommonName: "test.com"},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(1, 0, 0),
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		PublicKeyAlgorithm:    x509.RSA,
 		CRLDistributionPoints: []string{"http://example.com/crl"},
-		OCSPServer:          []string{"http://example.com/ocsp"},
+		OCSPServer:            []string{"http://example.com/ocsp"},
 	}
 
 	result := ValidateCertificate(certificate, &cert.ValidationConfig{
@@ -730,7 +730,7 @@ func TestValidateCertificateWithCRLAndOCSP(t *testing.T) {
 	if result.CRLDistributionURL != "http://example.com/crl" {
 		t.Errorf("Expected CRL URL to be stored, got: %s", result.CRLDistributionURL)
 	}
-	
+
 	if result.OCSPURL != "http://example.com/ocsp" {
 		t.Errorf("Expected OCSP URL to be stored, got: %s", result.OCSPURL)
 	}
@@ -762,7 +762,7 @@ func TestValidateCertificateNonCAWithPathLength(t *testing.T) {
 			break
 		}
 	}
-	
+
 	if !hasWarning {
 		t.Error("Expected warning about non-CA cert with path length constraint")
 	}
@@ -772,7 +772,7 @@ func TestValidateCertificateNonCAWithPathLength(t *testing.T) {
 func TestValidateCertificateChecksExpirationFalse(t *testing.T) {
 	now := time.Now()
 	past := now.AddDate(-1, 0, 0)
-	
+
 	certificate := &x509.Certificate{
 		SerialNumber:       big.NewInt(1),
 		Subject:            pkix.Name{CommonName: "test.com"},
@@ -794,4 +794,3 @@ func TestValidateCertificateChecksExpirationFalse(t *testing.T) {
 		t.Error("Expected validation to pass when CheckExpiration is false")
 	}
 }
-
