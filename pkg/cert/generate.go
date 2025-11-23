@@ -187,6 +187,7 @@ func GenerateCSR(config *CSRConfig) (*x509.CertificateRequest, crypto.PrivateKey
 			CommonName: config.CommonName,
 		},
 		DNSNames:           config.DNSNames,
+		IPAddresses:        config.IPAddresses,
 		SignatureAlgorithm: sigAlg,
 	}
 

@@ -405,3 +405,204 @@ func TestGetKeySize(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateSelfSignedCertificateWithExtensions(t *testing.T) {
+	config := &CertificateConfig{
+		CommonName:            "test.example.com",
+		Country:               "US",
+		Organization:          "Test Org",
+		KeyType:               KeyTypeRSA2048,
+		Validity:              365,
+		IsCA:                  false,
+		CRLDistributionPoints: []string{"http://crl.example.com/ca.crl"},
+		OCSPServer:            []string{"http://ocsp.example.com"},
+	}
+
+	cert, key, err := GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("Failed to generate certificate: %v", err)
+	}
+
+	if cert == nil {
+		t.Fatal("Certificate is nil")
+	}
+
+	if key == nil {
+		t.Fatal("Private key is nil")
+	}
+
+	if len(cert.CRLDistributionPoints) != 1 {
+		t.Errorf("Expected 1 CRL distribution point, got %d", len(cert.CRLDistributionPoints))
+	}
+
+	if len(cert.OCSPServer) != 1 {
+		t.Errorf("Expected 1 OCSP server, got %d", len(cert.OCSPServer))
+	}
+}
+
+func TestGenerateCASignedCertificateWithExtensions(t *testing.T) {
+	// Generate CA
+	caConfig := &CertificateConfig{
+		CommonName:    "Test CA",
+		Country:       "US",
+		Organization:  "Test CA",
+		KeyType:       KeyTypeRSA2048,
+		Validity:      3650,
+		IsCA:          true,
+		MaxPathLength: -1,
+	}
+
+	caCert, caKey, err := GenerateSelfSignedCertificate(caConfig)
+	if err != nil {
+		t.Fatalf("Failed to generate CA: %v", err)
+	}
+
+	// Generate certificate with extensions
+	certConfig := &CertificateConfig{
+		CommonName:            "example.com",
+		Country:               "US",
+		Organization:          "Test Org",
+		KeyType:               KeyTypeRSA2048,
+		Validity:              365,
+		CRLDistributionPoints: []string{"http://crl.example.com/ca.crl"},
+		OCSPServer:            []string{"http://ocsp.example.com"},
+	}
+
+	cert, key, err := GenerateCASignedCertificate(certConfig, caConfig, caKey, caCert)
+	if err != nil {
+		t.Fatalf("Failed to generate CA-signed certificate: %v", err)
+	}
+
+	if cert == nil {
+		t.Fatal("Certificate is nil")
+	}
+
+	if key == nil {
+		t.Fatal("Private key is nil")
+	}
+
+	if len(cert.CRLDistributionPoints) != 1 {
+		t.Errorf("Expected 1 CRL distribution point, got %d", len(cert.CRLDistributionPoints))
+	}
+
+	if len(cert.OCSPServer) != 1 {
+		t.Errorf("Expected 1 OCSP server, got %d", len(cert.OCSPServer))
+	}
+}
+
+func TestGenerateCSRWithAllFields(t *testing.T) {
+	config := &CSRConfig{
+		CommonName:   "test.example.com",
+		Country:      "US",
+		Organization: "Test Org",
+		KeyType:      KeyTypeRSA2048,
+		DNSNames:     []string{"test.example.com", "www.example.com"},
+		IPAddresses:  []net.IP{net.ParseIP("192.168.1.1"), net.ParseIP("10.0.0.1")},
+	}
+
+	csr, key, err := GenerateCSR(config)
+	if err != nil {
+		t.Fatalf("Failed to generate CSR: %v", err)
+	}
+
+	if csr == nil {
+		t.Fatal("CSR is nil")
+	}
+
+	if key == nil {
+		t.Fatal("Private key is nil")
+	}
+
+	if csr.Subject.CommonName != "test.example.com" {
+		t.Errorf("Expected CN=test.example.com, got %s", csr.Subject.CommonName)
+	}
+
+	if len(csr.DNSNames) != 2 {
+		t.Errorf("Expected 2 DNS names, got %d", len(csr.DNSNames))
+	}
+
+	if len(csr.IPAddresses) != 2 {
+		t.Errorf("Expected 2 IP addresses, got %d", len(csr.IPAddresses))
+	}
+}
+
+func TestGenerateCSRWithEachKeyType(t *testing.T) {
+	keyTypes := []KeyType{
+		KeyTypeRSA2048,
+		KeyTypeRSA4096,
+		KeyTypeECDSAP256,
+		KeyTypeECDSAP384,
+		KeyTypeECDSAP521,
+		KeyTypeEd25519,
+	}
+
+	for _, keyType := range keyTypes {
+		t.Run(string(keyType), func(t *testing.T) {
+			config := &CSRConfig{
+				CommonName:   "test.example.com",
+				Country:      "US",
+				Organization: "Test Org",
+				KeyType:      keyType,
+			}
+
+			csr, key, err := GenerateCSR(config)
+			if err != nil {
+				t.Fatalf("Failed to generate CSR with %s: %v", keyType, err)
+			}
+
+			if csr == nil {
+				t.Fatal("CSR is nil")
+			}
+
+			if key == nil {
+				t.Fatal("Private key is nil")
+			}
+
+			if csr.Subject.CommonName != "test.example.com" {
+				t.Errorf("Expected CN=test.example.com, got %s", csr.Subject.CommonName)
+			}
+		})
+	}
+}
+
+func TestGenerateSelfSignedCAWithPathLength(t *testing.T) {
+	tests := []struct {
+		name          string
+		maxPathLength int
+	}{
+		{"unlimited", -1},
+		{"zero", 0},
+		{"one", 1},
+		{"two", 2},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &CertificateConfig{
+				CommonName:    "Test CA",
+				Organization:  "Test Org",
+				KeyType:       KeyTypeRSA2048,
+				Validity:      365,
+				IsCA:          true,
+				MaxPathLength: tt.maxPathLength,
+			}
+
+			cert, _, err := GenerateSelfSignedCertificate(config)
+			if err != nil {
+				t.Fatalf("Failed to generate CA: %v", err)
+			}
+
+			if cert == nil {
+				t.Fatal("Certificate is nil")
+			}
+
+			if !cert.IsCA {
+				t.Error("Expected IsCA to be true")
+			}
+
+			if !cert.BasicConstraintsValid {
+				t.Error("Expected BasicConstraintsValid to be true")
+			}
+		})
+	}
+}

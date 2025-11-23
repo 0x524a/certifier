@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"crypto/x509"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -505,5 +506,178 @@ func TestFilePermissions(t *testing.T) {
 	keyInfo, _ := os.Stat(keyFile)
 	if keyInfo.Mode().Perm() != 0600 {
 		t.Logf("Key file permissions: %o (expected 0600)", keyInfo.Mode().Perm())
+	}
+}
+
+func TestGenerateCAVariousValidityPeriods(t *testing.T) {
+	validityPeriods := []int{30, 90, 180, 365, 730, 1825, 3650}
+
+	for _, validity := range validityPeriods {
+		t.Run(fmt.Sprintf("%d_days", validity), func(t *testing.T) {
+			tmpDir := t.TempDir()
+			certFile := filepath.Join(tmpDir, "test_ca.crt")
+			keyFile := filepath.Join(tmpDir, "test_ca.key")
+
+			args := []string{
+				"--cn", "Test CA",
+				"--validity", fmt.Sprintf("%d", validity),
+				"--output", certFile,
+				"--key-output", keyFile,
+			}
+
+			GenerateCA(args)
+
+			// Verify certificate was created
+			_, err := os.Stat(certFile)
+			if err != nil {
+				t.Errorf("Certificate file not created: %v", err)
+			}
+
+			_, err = os.Stat(keyFile)
+			if err != nil {
+				t.Errorf("Key file not created: %v", err)
+			}
+		})
+	}
+}
+
+func TestGenerateCertVariousKeyTypes(t *testing.T) {
+	keyTypes := []string{"rsa2048", "rsa4096", "ecdsa-p256", "ecdsa-p384", "ecdsa-p521", "ed25519"}
+
+	for _, keyType := range keyTypes {
+		t.Run(keyType, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			certFile := filepath.Join(tmpDir, fmt.Sprintf("test_%s.crt", keyType))
+			keyFile := filepath.Join(tmpDir, fmt.Sprintf("test_%s.key", keyType))
+
+			args := []string{
+				"--cn", "example.com",
+				"--key-type", keyType,
+				"--output", certFile,
+				"--key-output", keyFile,
+			}
+
+			GenerateCert(args)
+
+			// Verify files were created
+			_, err := os.Stat(certFile)
+			if err != nil {
+				t.Errorf("Certificate file not created for %s: %v", keyType, err)
+			}
+
+			_, err = os.Stat(keyFile)
+			if err != nil {
+				t.Errorf("Key file not created for %s: %v", keyType, err)
+			}
+		})
+	}
+}
+
+func TestGenerateCSRVariousKeyTypes(t *testing.T) {
+	keyTypes := []string{"rsa2048", "rsa4096", "ecdsa-p256", "ecdsa-p384", "ecdsa-p521", "ed25519"}
+
+	for _, keyType := range keyTypes {
+		t.Run(keyType, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			csrFile := filepath.Join(tmpDir, fmt.Sprintf("test_%s.csr", keyType))
+			keyFile := filepath.Join(tmpDir, fmt.Sprintf("test_%s.key", keyType))
+
+			args := []string{
+				"--cn", "example.com",
+				"--key-type", keyType,
+				"--output", csrFile,
+				"--key-output", keyFile,
+			}
+
+			GenerateCSR(args)
+
+			// Verify files were created
+			_, err := os.Stat(csrFile)
+			if err != nil {
+				t.Errorf("CSR file not created for %s: %v", keyType, err)
+			}
+
+			_, err = os.Stat(keyFile)
+			if err != nil {
+				t.Errorf("Key file not created for %s: %v", keyType, err)
+			}
+		})
+	}
+}
+
+func TestGenerateCertWithDNSNames(t *testing.T) {
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "multi_dns.crt")
+	keyFile := filepath.Join(tmpDir, "multi_dns.key")
+
+	args := []string{
+		"--cn", "example.com",
+		"--dns", "example.com,www.example.com,api.example.com",
+		"--output", certFile,
+		"--key-output", keyFile,
+	}
+
+	GenerateCert(args)
+
+	// Verify certificate was created
+	_, err := os.Stat(certFile)
+	if err != nil {
+		t.Errorf("Certificate file not created: %v", err)
+	}
+}
+
+func TestViewCertWithVariousCertificates(t *testing.T) {
+	// Create test certificate
+	certFile, _ := createTestCertificate(t)
+
+	args := []string{"--cert", certFile}
+
+	// Capture output
+	output := captureOutput(func() {
+		ViewCert(args)
+	})
+
+	if !strings.Contains(output, "Certificate Details") {
+		t.Errorf("Expected 'Certificate Details' in output, got: %s", output)
+	}
+}
+
+func TestGenerateCSRWithSubjectFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	csrFile := filepath.Join(tmpDir, "test.csr")
+	keyFile := filepath.Join(tmpDir, "test.key")
+
+	args := []string{
+		"--cn", "example.com",
+		"--country", "US",
+		"--org", "Example Corp",
+		"--output", csrFile,
+		"--key-output", keyFile,
+	}
+
+	GenerateCSR(args)
+
+	// Verify CSR was created
+	csrPEM, err := os.ReadFile(csrFile)
+	if err != nil {
+		t.Fatalf("Failed to read CSR file: %v", err)
+	}
+
+	if len(csrPEM) == 0 {
+		t.Fatal("CSR file is empty")
+	}
+
+	// Decode and verify
+	csr, err := encoding.DecodeCSRFromPEM(csrPEM)
+	if err != nil {
+		t.Fatalf("Failed to decode CSR: %v", err)
+	}
+
+	if csr.Subject.CommonName != "example.com" {
+		t.Errorf("Expected CN=example.com, got %s", csr.Subject.CommonName)
+	}
+
+	if len(csr.Subject.Country) > 0 && csr.Subject.Country[0] != "US" {
+		t.Errorf("Expected Country=US, got %s", csr.Subject.Country[0])
 	}
 }
