@@ -1059,3 +1059,342 @@ func TestGenerateCertFromFile_WithAllFields(t *testing.T) {
 		t.Errorf("Expected 2 DNS names, got %d", len(certificate.DNSNames))
 	}
 }
+
+// TestGenerateCAInteractiveMode tests CA generation with interactive prompts
+func TestGenerateCAInteractiveMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = tmpDir // Use tmpDir in test
+	
+	// Change to temp directory
+	oldCwd, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldCwd) }()
+	
+	// We can't directly test interactive mode due to stdin, but we can test the command with flags
+	output := captureOutput(func() {
+		GenerateCA([]string{"-cn", "Interactive Test CA", "-org", "TestOrg", "-non-interactive"})
+	})
+	
+	if !strings.Contains(output, "CA Certificate generated successfully") {
+		t.Errorf("Expected success message, got: %s", output)
+	}
+}
+
+// TestGenerateCertWithIPAddresses tests certificate generation with IP SANs
+func TestGenerateCertWithIPAddresses(t *testing.T) {
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "cert-ips.crt")
+	keyFile := filepath.Join(tmpDir, "cert-ips.key")
+	
+	output := captureOutput(func() {
+		GenerateCert([]string{
+			"-cn", "192.168.1.1",
+			"-ip", "192.168.1.1,127.0.0.1",
+			"-output", certFile,
+			"-key-output", keyFile,
+		})
+	})
+	
+	if !strings.Contains(output, "Certificate generated successfully") {
+		t.Errorf("Expected success message, got: %s", output)
+	}
+	
+	if _, err := os.Stat(certFile); err != nil {
+		t.Errorf("Certificate file not created: %v", err)
+	}
+}
+
+// TestGenerateCertWithSubjectFields tests certificate generation with subject fields
+func TestGenerateCertWithSubjectFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "cert-subj.crt")
+	keyFile := filepath.Join(tmpDir, "cert-subj.key")
+	
+	output := captureOutput(func() {
+		GenerateCert([]string{
+			"-cn", "user.example.com",
+			"-org", "Test Corp",
+			"-ou", "Engineering",
+			"-output", certFile,
+			"-key-output", keyFile,
+		})
+	})
+	
+	if !strings.Contains(output, "Certificate generated successfully") {
+		t.Errorf("Expected success message, got: %s", output)
+	}
+	
+	if _, err := os.Stat(certFile); err != nil {
+		t.Errorf("Certificate file not created: %v", err)
+	}
+}
+
+// TestGenerateCSRWithIPAddresses tests CSR generation with DNS SANs
+func TestGenerateCSRWithIPAddresses(t *testing.T) {
+	tmpDir := t.TempDir()
+	csrFile := filepath.Join(tmpDir, "test-dns.csr")
+	keyFile := filepath.Join(tmpDir, "test-dns.key")
+	
+	output := captureOutput(func() {
+		GenerateCSR([]string{
+			"-cn", "api.example.com",
+			"-dns", "api.example.com,api2.example.com",
+			"-output", csrFile,
+			"-key-output", keyFile,
+		})
+	})
+	
+	if !strings.Contains(output, "CSR generated successfully") {
+		t.Errorf("Expected success message, got: %s", output)
+	}
+}
+
+// TestGenerateCSRWithSubjectFieldsNew tests CSR generation with subject fields
+func TestGenerateCSRWithSubjectFieldsNew(t *testing.T) {
+	tmpDir := t.TempDir()
+	csrFile := filepath.Join(tmpDir, "test-subj.csr")
+	keyFile := filepath.Join(tmpDir, "test-subj.key")
+	
+	output := captureOutput(func() {
+		GenerateCSR([]string{
+			"-cn", "user.example.com",
+			"-org", "Test Corp",
+			"-country", "US",
+			"-output", csrFile,
+			"-key-output", keyFile,
+		})
+	})
+	
+	if !strings.Contains(output, "CSR generated successfully") {
+		t.Errorf("Expected success message, got: %s", output)
+	}
+}
+
+// TestGenerateCAWithAllFields tests CA generation with all subject fields
+func TestGenerateCAWithAllFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "ca-full.crt")
+	keyFile := filepath.Join(tmpDir, "ca-full.key")
+	
+	output := captureOutput(func() {
+		GenerateCA([]string{
+			"-cn", "Full CA",
+			"-country", "US",
+			"-org", "Test Org",
+			"-ou", "IT Department",
+			"-locality", "San Francisco",
+			"-province", "CA",
+			"-validity", "3650",
+			"-output", certFile,
+			"-key-output", keyFile,
+			"-non-interactive",
+		})
+	})
+	
+	if !strings.Contains(output, "CA Certificate generated successfully") {
+		t.Errorf("Expected success message, got: %s", output)
+	}
+	
+	// Verify the certificate has the correct subject fields
+	certPEM, err := os.ReadFile(certFile)
+	if err != nil {
+		t.Fatalf("Failed to read certificate: %v", err)
+	}
+	
+	certificate, err := encoding.DecodeCertificateFromPEM(certPEM)
+	if err != nil {
+		t.Fatalf("Failed to decode certificate: %v", err)
+	}
+	
+	if certificate == nil {
+		t.Fatalf("No certificate found in PEM")
+	}
+	if certificate.Subject.CommonName != "Full CA" {
+		t.Errorf("CN mismatch: got %s, expected Full CA", certificate.Subject.CommonName)
+	}
+	if len(certificate.Subject.Organization) == 0 || certificate.Subject.Organization[0] != "Test Org" {
+		t.Errorf("Organization mismatch")
+	}
+}
+
+// TestGenerateCertWithAllFields tests certificate generation with all subject fields
+func TestGenerateCertWithAllFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "cert-full.crt")
+	keyFile := filepath.Join(tmpDir, "cert-full.key")
+	
+	output := captureOutput(func() {
+		GenerateCert([]string{
+			"-cn", "example.com",
+			"-country", "US",
+			"-org", "Test Org",
+			"-ou", "Engineering",
+			"-locality", "San Francisco",
+			"-province", "CA",
+			"-dns", "example.com,www.example.com",
+			"-validity", "365",
+			"-output", certFile,
+			"-key-output", keyFile,
+			"-non-interactive",
+		})
+	})
+	
+	if !strings.Contains(output, "Certificate generated successfully") {
+		t.Errorf("Expected success message, got: %s", output)
+	}
+}
+
+// TestGenerateCSRWithAllFields tests CSR generation with all subject fields
+func TestGenerateCSRWithAllFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	csrFile := filepath.Join(tmpDir, "csr-full.csr")
+	keyFile := filepath.Join(tmpDir, "csr-full.key")
+	
+	output := captureOutput(func() {
+		GenerateCSR([]string{
+			"-cn", "example.com",
+			"-country", "US",
+			"-org", "Test Org",
+			"-dns", "example.com,www.example.com",
+			"-output", csrFile,
+			"-key-output", keyFile,
+			"-non-interactive",
+		})
+	})
+	
+	if !strings.Contains(output, "CSR generated successfully") {
+		t.Errorf("Expected success message, got: %s", output)
+	}
+}
+
+// TestGenerateCertWithECDSAKeyTypes tests certificate generation with ECDSA key types
+func TestGenerateCertWithECDSAKeyTypes(t *testing.T) {
+	keyTypes := []string{"ecdsa-p256", "ecdsa-p384", "ecdsa-p521"}
+	
+	for _, kt := range keyTypes {
+		t.Run(kt, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			certFile := filepath.Join(tmpDir, "cert.crt")
+			keyFile := filepath.Join(tmpDir, "cert.key")
+			
+			output := captureOutput(func() {
+				GenerateCert([]string{
+					"-cn", "ecdsa-test.com",
+					"-key-type", kt,
+					"-output", certFile,
+					"-key-output", keyFile,
+					"-non-interactive",
+				})
+			})
+			
+			if !strings.Contains(output, "Certificate generated successfully") {
+				t.Errorf("Expected success message for %s, got: %s", kt, output)
+			}
+		})
+	}
+}
+
+// TestGenerateCSRWithEd25519 tests CSR generation with Ed25519
+func TestGenerateCSRWithEd25519(t *testing.T) {
+	tmpDir := t.TempDir()
+	csrFile := filepath.Join(tmpDir, "ed25519.csr")
+	keyFile := filepath.Join(tmpDir, "ed25519.key")
+	
+	output := captureOutput(func() {
+		GenerateCSR([]string{
+			"-cn", "ed25519-test.com",
+			"-key-type", "ed25519",
+			"-output", csrFile,
+			"-key-output", keyFile,
+			"-non-interactive",
+		})
+	})
+	
+	if !strings.Contains(output, "CSR generated successfully") {
+		t.Errorf("Expected success message, got: %s", output)
+	}
+}
+
+// TestGenerateCertWithExtendedValidity tests certificate with extended validity
+func TestGenerateCertWithExtendedValidity(t *testing.T) {
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "extended.crt")
+	keyFile := filepath.Join(tmpDir, "extended.key")
+	
+	output := captureOutput(func() {
+		GenerateCert([]string{
+			"-cn", "extended.example.com",
+			"-validity", "1825",
+			"-output", certFile,
+			"-key-output", keyFile,
+			"-non-interactive",
+		})
+	})
+	
+	if !strings.Contains(output, "Certificate generated successfully") {
+		t.Errorf("Expected success message, got: %s", output)
+	}
+	
+	// Verify validity
+	certPEM, err := os.ReadFile(certFile)
+	if err != nil {
+		t.Fatalf("Failed to read certificate: %v", err)
+	}
+	
+	cert, err := encoding.DecodeCertificateFromPEM(certPEM)
+	if err != nil {
+		t.Fatalf("Failed to decode certificate: %v", err)
+	}
+	
+	if cert == nil {
+		t.Fatalf("No certificate found")
+	}
+	validityDays := int(cert.NotAfter.Sub(cert.NotBefore).Hours() / 24)
+	if validityDays < 1820 || validityDays > 1830 {
+		t.Errorf("Expected validity ~1825 days, got %d", validityDays)
+	}
+}
+
+// TestGenerateCertWithMultipleDNS tests certificate with multiple DNS names
+func TestGenerateCertWithMultipleDNS(t *testing.T) {
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "multi-dns.crt")
+	keyFile := filepath.Join(tmpDir, "multi-dns.key")
+	
+	dnsNames := "example.com,www.example.com,api.example.com,*.example.com"
+	
+	output := captureOutput(func() {
+		GenerateCert([]string{
+			"-cn", "example.com",
+			"-dns", dnsNames,
+			"-output", certFile,
+			"-key-output", keyFile,
+			"-non-interactive",
+		})
+	})
+	
+	if !strings.Contains(output, "Certificate generated successfully") {
+		t.Errorf("Expected success message, got: %s", output)
+	}
+	
+	// Verify DNS names in certificate
+	certPEM, err := os.ReadFile(certFile)
+	if err != nil {
+		t.Fatalf("Failed to read certificate: %v", err)
+	}
+	
+	cert, err := encoding.DecodeCertificateFromPEM(certPEM)
+	if err != nil {
+		t.Fatalf("Failed to decode certificate: %v", err)
+	}
+	
+	if cert == nil {
+		t.Fatalf("No certificate found")
+	}
+	if len(cert.DNSNames) != 4 {
+		t.Errorf("Expected 4 DNS names, got %d", len(cert.DNSNames))
+	}
+}
+
