@@ -1,0 +1,29 @@
+name: Stale Issue Management
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark stale issues and PRs
+        uses: actions/stale@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          stale-issue-message: |
+            This issue has been inactive for 30 days. If you believe this is still relevant, please comment or reopen. Otherwise, it will be closed in 7 days.
+          stale-pr-message: |
+            This PR has been inactive for 30 days. If you plan to continue work, please comment. Otherwise, it will be closed in 7 days.
+          stale-issue-label: 'stale'
+          stale-pr-label: 'stale'
+          days-before-stale: 30
+          days-before-close: 7
+          exempt-issue-labels: 'pinned,security,roadmap'
+          exempt-pr-labels: 'pinned,security'

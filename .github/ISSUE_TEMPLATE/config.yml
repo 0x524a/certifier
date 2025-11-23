@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or Discussion
+    url: https://github.com/0x524a/certifier/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: Security Issue
+    url: https://github.com/0x524a/certifier/security/advisories/new
+    about: Report a security vulnerability (private disclosure)
