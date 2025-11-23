@@ -27,7 +27,7 @@ func GenerateSelfSignedCertificate(config *CertificateConfig) (*x509.Certificate
 	}
 
 	// Get signature algorithm
-	sigAlg, err := GetSignatureAlgorithmForKey(privateKey)
+	sigAlg, err := GetSignatureAlgorithmForKeyWithPSS(privateKey, config.UseRSAPSS)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get signature algorithm: %w", err)
 	}

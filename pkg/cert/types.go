@@ -65,6 +65,14 @@ type CertificateConfig struct {
 	AuthorityInfoAccessOCSP []string
 
 	// Subject Key Identifier and Authority Key Identifier are auto-generated
+
+	// UseRSAPSS enables RSA-PSS signature algorithm for enhanced security (only for RSA keys)
+	// RSA-PSS provides better security properties than PKCS#1 v1.5:
+	// - Uses randomized padding (probabilistic) making it resistant to certain attacks
+	// - Recommended for new deployments and security-critical applications
+	// - If false, uses PKCS#1 v1.5 (default for backward compatibility)
+	// Note: Certificates signed with PSS require the verifier to support PSS
+	UseRSAPSS bool
 }
 
 // KeyPair holds a private and public key pair

@@ -149,9 +149,23 @@ func (ss *simpleSigner) Public() crypto.PublicKey {
 	return nil
 }
 
-// Sign signs the data
+// Sign signs the data using the appropriate signature algorithm
+// For RSA keys:
+// - If RSA-PSS is explicitly requested via PSSOptions, uses PSS padding for enhanced security
+// - Otherwise uses PKCS#1 v1.5 for backward compatibility with existing certificates
+// Security Note: To use the more secure RSA-PSS signature scheme for CRLs, generate the
+// CA certificate with UseRSAPSS=true in CertificateConfig. This will automatically use
+// PSS padding which provides better security properties than PKCS#1 v1.5.
 func (ss *simpleSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
 	if rsaKey, ok := ss.pk.(*rsa.PrivateKey); ok {
+		// Check if PSS is explicitly requested via SignerOpts
+		if pssOpts, ok := opts.(*rsa.PSSOptions); ok {
+			// Use PSS padding when explicitly requested for enhanced security
+			return rsa.SignPSS(rand, rsaKey, pssOpts.Hash, digest, pssOpts)
+		}
+		// Default to PKCS1v15 for compatibility with existing PKCS#1 v1.5 certificates
+		// The signature algorithm is determined by the CA certificate's SignatureAlgorithm field
+		// Note: To use PSS, the CA certificate must be created with PSS signature algorithm
 		return rsa.SignPKCS1v15(rand, rsaKey, opts.HashFunc(), digest)
 	}
 	return nil, fmt.Errorf("signing with key type %T not supported", ss.pk)
