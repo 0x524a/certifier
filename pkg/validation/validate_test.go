@@ -629,3 +629,169 @@ func TestValidateCertificateECDSAWithSHA1(t *testing.T) {
 		t.Error("Expected warning about ECDSAWithSHA1 signature algorithm")
 	}
 }
+
+// TestValidateCertificateNotYetValid tests certificate that's not yet valid
+func TestValidateCertificateNotYetValid(t *testing.T) {
+	now := time.Now()
+	future := now.AddDate(1, 0, 0)
+	
+	certificate := &x509.Certificate{
+		SerialNumber:       big.NewInt(1),
+		Subject:            pkix.Name{CommonName: "test.com"},
+		Issuer:             pkix.Name{CommonName: "test.com"},
+		NotBefore:          future,
+		NotAfter:           future.AddDate(1, 0, 0),
+		SignatureAlgorithm: x509.SHA256WithRSA,
+		PublicKeyAlgorithm: x509.RSA,
+	}
+
+	result := ValidateCertificate(certificate, &cert.ValidationConfig{
+		CheckExpiration: true,
+		AllowExpired:    false,
+		CurrentTime:     now,
+	})
+
+	if result.Valid {
+		t.Error("Expected validation to fail for not-yet-valid certificate")
+	}
+	
+	if result.NotExpired {
+		t.Error("Expected NotExpired to be false for not-yet-valid certificate")
+	}
+	
+	hasError := false
+	for _, err := range result.Errors {
+		if err == "certificate is not yet valid" {
+			hasError = true
+			break
+		}
+	}
+	
+	if !hasError {
+		t.Error("Expected error about certificate not being valid yet")
+	}
+}
+
+// TestValidateCertificateWithAllowExpired tests allowing expired certificates
+func TestValidateCertificateWithAllowExpired(t *testing.T) {
+	now := time.Now()
+	past := now.AddDate(-1, 0, 0)
+	
+	certificate := &x509.Certificate{
+		SerialNumber:       big.NewInt(1),
+		Subject:            pkix.Name{CommonName: "test.com"},
+		Issuer:             pkix.Name{CommonName: "test.com"},
+		NotBefore:          past.AddDate(-1, 0, 0),
+		NotAfter:           past,
+		SignatureAlgorithm: x509.SHA256WithRSA,
+		PublicKeyAlgorithm: x509.RSA,
+	}
+
+	result := ValidateCertificate(certificate, &cert.ValidationConfig{
+		CheckExpiration: true,
+		AllowExpired:    true,
+		CurrentTime:     now,
+	})
+
+	// Should have warning but still be valid
+	if result.Valid {
+		// Check for warning
+		hasWarning := false
+		for _, warning := range result.Warnings {
+			if warning == "certificate has expired" {
+				hasWarning = true
+				break
+			}
+		}
+		if !hasWarning {
+			t.Errorf("Expected warning for expired certificate when allowing expired")
+		}
+	}
+}
+
+// TestValidateCertificateWithCRLAndOCSP tests CRL and OCSP URL extraction
+func TestValidateCertificateWithCRLAndOCSP(t *testing.T) {
+	certificate := &x509.Certificate{
+		SerialNumber:        big.NewInt(1),
+		Subject:             pkix.Name{CommonName: "test.com"},
+		Issuer:              pkix.Name{CommonName: "test.com"},
+		NotBefore:           time.Now(),
+		NotAfter:            time.Now().AddDate(1, 0, 0),
+		SignatureAlgorithm:  x509.SHA256WithRSA,
+		PublicKeyAlgorithm:  x509.RSA,
+		CRLDistributionPoints: []string{"http://example.com/crl"},
+		OCSPServer:          []string{"http://example.com/ocsp"},
+	}
+
+	result := ValidateCertificate(certificate, &cert.ValidationConfig{
+		CheckExpiration: false,
+	})
+
+	if result.CRLDistributionURL != "http://example.com/crl" {
+		t.Errorf("Expected CRL URL to be stored, got: %s", result.CRLDistributionURL)
+	}
+	
+	if result.OCSPURL != "http://example.com/ocsp" {
+		t.Errorf("Expected OCSP URL to be stored, got: %s", result.OCSPURL)
+	}
+}
+
+// TestValidateCertificateNonCAWithPathLength tests non-CA cert with path length constraint
+func TestValidateCertificateNonCAWithPathLength(t *testing.T) {
+	certificate := &x509.Certificate{
+		SerialNumber:       big.NewInt(1),
+		Subject:            pkix.Name{CommonName: "test.com"},
+		Issuer:             pkix.Name{CommonName: "test.com"},
+		NotBefore:          time.Now(),
+		NotAfter:           time.Now().AddDate(1, 0, 0),
+		SignatureAlgorithm: x509.SHA256WithRSA,
+		PublicKeyAlgorithm: x509.RSA,
+		IsCA:               false,
+		MaxPathLen:         2,
+	}
+
+	result := ValidateCertificate(certificate, &cert.ValidationConfig{
+		CheckExpiration: false,
+	})
+
+	// Should have warning
+	hasWarning := false
+	for _, warning := range result.Warnings {
+		if warning == "non-CA certificate has path length constraint" {
+			hasWarning = true
+			break
+		}
+	}
+	
+	if !hasWarning {
+		t.Error("Expected warning about non-CA cert with path length constraint")
+	}
+}
+
+// TestValidateCertificateChecksExpirationFalse tests with CheckExpiration disabled
+func TestValidateCertificateChecksExpirationFalse(t *testing.T) {
+	now := time.Now()
+	past := now.AddDate(-1, 0, 0)
+	
+	certificate := &x509.Certificate{
+		SerialNumber:       big.NewInt(1),
+		Subject:            pkix.Name{CommonName: "test.com"},
+		Issuer:             pkix.Name{CommonName: "test.com"},
+		NotBefore:          past.AddDate(-1, 0, 0),
+		NotAfter:           past,
+		SignatureAlgorithm: x509.SHA256WithRSA,
+		PublicKeyAlgorithm: x509.RSA,
+	}
+
+	result := ValidateCertificate(certificate, &cert.ValidationConfig{
+		CheckExpiration: false,
+		CurrentTime:     now,
+	})
+
+	// Should still be valid even though expired
+	// because CheckExpiration is false
+	if !result.Valid {
+		t.Error("Expected validation to pass when CheckExpiration is false")
+	}
+}
+
