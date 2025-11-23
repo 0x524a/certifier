@@ -1059,4 +1059,3 @@ func TestGenerateCertFromFile_WithAllFields(t *testing.T) {
 		t.Errorf("Expected 2 DNS names, got %d", len(certificate.DNSNames))
 	}
 }
-
