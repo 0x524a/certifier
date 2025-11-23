@@ -1398,3 +1398,78 @@ func TestGenerateCertWithMultipleDNS(t *testing.T) {
 	}
 }
 
+// TestGenerateCACmd tests the error-returning GenerateCACmd function
+func TestGenerateCACmd(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      []string
+		expectErr bool
+		checkFile bool
+	}{
+		{
+			name:      "Valid CA generation",
+			args:      []string{"-cn", "Test CA", "-org", "TestOrg", "-non-interactive"},
+			expectErr: false,
+			checkFile: true,
+		},
+		{
+			name:      "Missing CN in non-interactive mode",
+			args:      []string{"-non-interactive"},
+			expectErr: true,
+			checkFile: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			
+			// Add output file to args
+			args := append(tt.args, "-output", filepath.Join(tmpDir, "ca.crt"), "-key-output", filepath.Join(tmpDir, "ca.key"))
+			
+			err := GenerateCACmd(args)
+			
+			if (err != nil) != tt.expectErr {
+				t.Errorf("GenerateCACmd() error = %v, expectErr = %v", err, tt.expectErr)
+			}
+			
+			if tt.checkFile {
+				if _, err := os.Stat(filepath.Join(tmpDir, "ca.crt")); err != nil {
+					t.Errorf("Certificate file not created: %v", err)
+				}
+			}
+		})
+	}
+}
+
+// TestGenerateCACmd_ErrorHandling tests that GenerateCACmd returns proper errors
+func TestGenerateCACmd_ErrorHandling(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+		errText string
+	}{
+		{
+			name:    "Missing CN in non-interactive",
+			args:    []string{"-non-interactive"},
+			wantErr: true,
+			errText: "required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := GenerateCACmd(tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GenerateCACmd() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && !strings.Contains(err.Error(), tt.errText) {
+				t.Errorf("GenerateCACmd() error = %v, should contain '%s'", err, tt.errText)
+			}
+		})
+	}
+}
+
+
