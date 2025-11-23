@@ -10,32 +10,32 @@ import (
 
 // CertificateConfigFile represents a certificate configuration that can be loaded from file
 type CertificateConfigFile struct {
-	CommonName             string   `yaml:"commonName" json:"commonName"`
-	Country                string   `yaml:"country" json:"country"`
-	Organization           string   `yaml:"organization" json:"organization"`
-	OrganizationalUnit     string   `yaml:"organizationalUnit" json:"organizationalUnit"`
-	Locality               string   `yaml:"locality" json:"locality"`
-	Province               string   `yaml:"province" json:"province"`
-	StreetAddress          string   `yaml:"streetAddress" json:"streetAddress"`
-	PostalCode             string   `yaml:"postalCode" json:"postalCode"`
-	KeyType                string   `yaml:"keyType" json:"keyType"`
-	CertificateType        string   `yaml:"certificateType" json:"certificateType"`
-	Validity               int      `yaml:"validity" json:"validity"`
-	DNSNames               []string `yaml:"dnsNames" json:"dnsNames"`
-	IPAddresses            []string `yaml:"ipAddresses" json:"ipAddresses"`
-	EmailAddresses         []string `yaml:"emailAddresses" json:"emailAddresses"`
-	ExtendedKeyUsageOIDs   []string `yaml:"extendedKeyUsageOIDs" json:"extendedKeyUsageOIDs"`
-	CertificateOutputFile  string   `yaml:"certificateOutputFile" json:"certificateOutputFile"`
-	PrivateKeyOutputFile   string   `yaml:"privateKeyOutputFile" json:"privateKeyOutputFile"`
-	IsCA                   bool     `yaml:"isCA" json:"isCA"`
-	MaxPathLength          int      `yaml:"maxPathLength" json:"maxPathLength"`
-	CRLDistributionPoints  []string `yaml:"crlDistributionPoints" json:"crlDistributionPoints"`
-	OCSPServer             []string `yaml:"ocspServer" json:"ocspServer"`
-	IssuingCertificateURL  []string `yaml:"issuingCertificateURL" json:"issuingCertificateURL"`
+	CommonName              string   `yaml:"commonName" json:"commonName"`
+	Country                 string   `yaml:"country" json:"country"`
+	Organization            string   `yaml:"organization" json:"organization"`
+	OrganizationalUnit      string   `yaml:"organizationalUnit" json:"organizationalUnit"`
+	Locality                string   `yaml:"locality" json:"locality"`
+	Province                string   `yaml:"province" json:"province"`
+	StreetAddress           string   `yaml:"streetAddress" json:"streetAddress"`
+	PostalCode              string   `yaml:"postalCode" json:"postalCode"`
+	KeyType                 string   `yaml:"keyType" json:"keyType"`
+	CertificateType         string   `yaml:"certificateType" json:"certificateType"`
+	Validity                int      `yaml:"validity" json:"validity"`
+	DNSNames                []string `yaml:"dnsNames" json:"dnsNames"`
+	IPAddresses             []string `yaml:"ipAddresses" json:"ipAddresses"`
+	EmailAddresses          []string `yaml:"emailAddresses" json:"emailAddresses"`
+	ExtendedKeyUsageOIDs    []string `yaml:"extendedKeyUsageOIDs" json:"extendedKeyUsageOIDs"`
+	CertificateOutputFile   string   `yaml:"certificateOutputFile" json:"certificateOutputFile"`
+	PrivateKeyOutputFile    string   `yaml:"privateKeyOutputFile" json:"privateKeyOutputFile"`
+	IsCA                    bool     `yaml:"isCA" json:"isCA"`
+	MaxPathLength           int      `yaml:"maxPathLength" json:"maxPathLength"`
+	CRLDistributionPoints   []string `yaml:"crlDistributionPoints" json:"crlDistributionPoints"`
+	OCSPServer              []string `yaml:"ocspServer" json:"ocspServer"`
+	IssuingCertificateURL   []string `yaml:"issuingCertificateURL" json:"issuingCertificateURL"`
 	AuthorityInfoAccessOCSP []string `yaml:"authorityInfoAccessOCSP" json:"authorityInfoAccessOCSP"`
 	// CSR generation flag
-	IsCSR           bool   `yaml:"isCSR" json:"isCSR"`
-	CSROutputFile   string `yaml:"csrOutputFile" json:"csrOutputFile"`
+	IsCSR         bool   `yaml:"isCSR" json:"isCSR"`
+	CSROutputFile string `yaml:"csrOutputFile" json:"csrOutputFile"`
 }
 
 // ConfigurationFile represents the top-level configuration file structure
@@ -109,25 +109,25 @@ func (ccf *CertificateConfigFile) ToCertificateConfig() (*cert.CertificateConfig
 	}
 
 	config := &cert.CertificateConfig{
-		CommonName:               ccf.CommonName,
-		Country:                  ccf.Country,
-		Organization:             ccf.Organization,
-		OrganizationalUnit:       ccf.OrganizationalUnit,
-		Locality:                 ccf.Locality,
-		Province:                 ccf.Province,
-		StreetAddress:            ccf.StreetAddress,
-		PostalCode:               ccf.PostalCode,
-		KeyType:                  cert.KeyType(ccf.KeyType),
-		CertType:                 cert.CertificateType(ccf.CertificateType),
-		Validity:                 ccf.Validity,
-		DNSNames:                 ccf.DNSNames,
-		EmailAddresses:           ccf.EmailAddresses,
-		ExtendedKeyUsageOIDs:     ccf.ExtendedKeyUsageOIDs,
-		IsCA:                     ccf.IsCA,
-		MaxPathLength:            ccf.MaxPathLength,
-		CRLDistributionPoints:    ccf.CRLDistributionPoints,
-		OCSPServer:               ccf.OCSPServer,
-		IssuingCertificateURL:    ccf.IssuingCertificateURL,
+		CommonName:              ccf.CommonName,
+		Country:                 ccf.Country,
+		Organization:            ccf.Organization,
+		OrganizationalUnit:      ccf.OrganizationalUnit,
+		Locality:                ccf.Locality,
+		Province:                ccf.Province,
+		StreetAddress:           ccf.StreetAddress,
+		PostalCode:              ccf.PostalCode,
+		KeyType:                 cert.KeyType(ccf.KeyType),
+		CertType:                cert.CertificateType(ccf.CertificateType),
+		Validity:                ccf.Validity,
+		DNSNames:                ccf.DNSNames,
+		EmailAddresses:          ccf.EmailAddresses,
+		ExtendedKeyUsageOIDs:    ccf.ExtendedKeyUsageOIDs,
+		IsCA:                    ccf.IsCA,
+		MaxPathLength:           ccf.MaxPathLength,
+		CRLDistributionPoints:   ccf.CRLDistributionPoints,
+		OCSPServer:              ccf.OCSPServer,
+		IssuingCertificateURL:   ccf.IssuingCertificateURL,
 		AuthorityInfoAccessOCSP: ccf.AuthorityInfoAccessOCSP,
 	}
 

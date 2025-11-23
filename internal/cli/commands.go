@@ -76,10 +76,10 @@ func GenerateCA(args []string) {
 
 		// Display summary
 		summary := map[string]interface{}{
-			"Common Name":    config.CommonName,
-			"Organization":  config.Organization,
-			"Key Type":      string(config.KeyType),
-			"Validity":      fmt.Sprintf("%d days", config.Validity),
+			"Common Name":      config.CommonName,
+			"Organization":     config.Organization,
+			"Key Type":         string(config.KeyType),
+			"Validity":         fmt.Sprintf("%d days", config.Validity),
 			"Certificate Type": "CA",
 		}
 		SummaryTable(summary)
@@ -541,10 +541,10 @@ func GenerateCSR(args []string) {
 
 		// Display summary
 		summary := map[string]interface{}{
-			"Common Name":    config.CommonName,
-			"Organization":  config.Organization,
-			"Key Type":      string(config.KeyType),
-			"DNS Names":     strings.Join(dnsNamesList, ", "),
+			"Common Name":  config.CommonName,
+			"Organization": config.Organization,
+			"Key Type":     string(config.KeyType),
+			"DNS Names":    strings.Join(dnsNamesList, ", "),
 		}
 		SummaryTable(summary)
 
@@ -709,7 +709,7 @@ func GenerateCertFromFile(configPath string) {
 
 	for i, certCfg := range certConfigs {
 		fmt.Printf("═══════════════════════════════════════════════════════════\n")
-		
+
 		if certCfg.IsCSR {
 			fmt.Printf("CSR %d: %s\n", i+1, certCfg.CommonName)
 		} else {
