@@ -1,0 +1,46 @@
+certificates:
+  - commonName: "Module Signer"
+    organization: "MyOrg"
+    organizationalUnit: "Security"
+    country: "US"
+    locality: "San Francisco"
+    province: "CA"
+    validity: 3650
+    keyType: "rsa4096"
+    certificateType: "server"
+    # OID 2.5.29.37.0 is for Kernel Module Signing
+    # OID 1.3.6.1.4.1.57453.1.1 is a custom OID example
+    extendedKeyUsageOIDs:
+      - "2.5.29.37.0"
+    certificateOutputFile: "module-signer.crt"
+    privateKeyOutputFile: "module-signer.key"
+    isCA: false
+
+  - commonName: "Code Signer"
+    organization: "MyOrg"
+    organizationalUnit: "Security"
+    country: "US"
+    validity: 1825
+    keyType: "rsa2048"
+    certificateType: "server"
+    # OID 2.5.29.37.0 for code signing
+    extendedKeyUsageOIDs:
+      - "2.5.29.37.0"
+      - "1.3.6.1.4.1.57453.1.2"
+    certificateOutputFile: "code-signer.crt"
+    privateKeyOutputFile: "code-signer.key"
+    isCA: false
+
+  - commonName: "Firmware Signer"
+    organization: "MyOrg"
+    organizationalUnit: "Security"
+    country: "US"
+    validity: 1825
+    keyType: "ecdsa-p256"
+    certificateType: "server"
+    # OID 2.5.29.37.0 for firmware signing
+    extendedKeyUsageOIDs:
+      - "2.5.29.37.0"
+    certificateOutputFile: "firmware-signer.crt"
+    privateKeyOutputFile: "firmware-signer.key"
+    isCA: false

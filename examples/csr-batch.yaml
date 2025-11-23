@@ -1,0 +1,35 @@
+certificates:
+  # CSR for Web Server
+  - commonName: "web.example.com"
+    organization: "Example Corp"
+    organizationalUnit: "IT"
+    country: "US"
+    keyType: "rsa2048"
+    dnsNames:
+      - "web.example.com"
+      - "www.example.com"
+    isCSR: true
+    csrOutputFile: "web-server.csr"
+    privateKeyOutputFile: "web-server.key"
+
+  # CSR for Client
+  - commonName: "client@example.com"
+    organization: "Example Corp"
+    country: "US"
+    keyType: "rsa2048"
+    isCSR: true
+    csrOutputFile: "client.csr"
+    privateKeyOutputFile: "client.key"
+
+  # CSR with ECDSA
+  - commonName: "secure-api.example.com"
+    organization: "Example Corp"
+    organizationalUnit: "Security"
+    country: "US"
+    keyType: "ecdsa-p256"
+    dnsNames:
+      - "secure-api.example.com"
+      - "api-v2.example.com"
+    isCSR: true
+    csrOutputFile: "secure-api.csr"
+    privateKeyOutputFile: "secure-api.key"

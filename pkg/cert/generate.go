@@ -7,6 +7,7 @@ import (
 	"crypto/x509/pkix"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 )
 
@@ -57,6 +58,9 @@ func GenerateSelfSignedCertificate(config *CertificateConfig) (*x509.Certificate
 
 	// Set default key usage if not provided
 	setDefaultKeyUsage(template, config.IsCA)
+
+	// Set extended key usage based on certificate type and custom OIDs
+	setExtendedKeyUsage(template, config.CertType, config.IsCA, config.ExtendedKeyUsageOIDs)
 
 	// Configure CA-specific settings
 	if config.IsCA {
@@ -137,6 +141,9 @@ func GenerateCASignedCertificate(
 
 	// Set default key usage
 	setDefaultKeyUsage(template, certConfig.IsCA)
+
+	// Set extended key usage based on certificate type and custom OIDs
+	setExtendedKeyUsage(template, certConfig.CertType, certConfig.IsCA, certConfig.ExtendedKeyUsageOIDs)
 
 	// Configure CA-specific settings
 	if certConfig.IsCA {
@@ -253,6 +260,72 @@ func setDefaultKeyUsage(template *x509.Certificate, isCA bool) {
 			template.KeyUsage = x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment
 		}
 	}
+}
+
+// setExtendedKeyUsage sets Extended Key Usage based on certificate type and custom OIDs
+func setExtendedKeyUsage(template *x509.Certificate, certType CertificateType, isCA bool, customOIDs []string) {
+	if isCA {
+		// CA certificates don't typically have extended key usage
+		return
+	}
+
+	// If custom OIDs are provided, use only those
+	if len(customOIDs) > 0 {
+		template.ExtraExtensions = append(template.ExtraExtensions, parseCustomOIDs(customOIDs)...)
+		return
+	}
+
+	if len(template.ExtKeyUsage) > 0 {
+		// Already set, don't override
+		return
+	}
+
+	switch certType {
+	case CertTypeClient:
+		template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
+	case CertTypeServer:
+		template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
+	case CertTypeBoth:
+		template.ExtKeyUsage = []x509.ExtKeyUsage{
+			x509.ExtKeyUsageServerAuth,
+			x509.ExtKeyUsageClientAuth,
+		}
+	default:
+		// Default to server auth if type not specified
+		template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
+	}
+}
+
+// parseCustomOIDs converts OID strings to pkix.Extension objects
+// OID format: "2.5.29.37.0" for module signing, etc.
+func parseCustomOIDs(oidStrings []string) []pkix.Extension {
+	var extensions []pkix.Extension
+	for _, oidStr := range oidStrings {
+		// Create OID from string (split by dots and convert to int values)
+		parts := strings.Split(strings.TrimSpace(oidStr), ".")
+		if len(parts) < 2 {
+			continue // Invalid OID format
+		}
+
+		oid := make([]int, 0, len(parts))
+		for _, part := range parts {
+			var val int
+			_, err := fmt.Sscanf(part, "%d", &val)
+			if err != nil {
+				continue // Skip invalid parts
+			}
+			oid = append(oid, val)
+		}
+
+		if len(oid) >= 2 {
+			extensions = append(extensions, pkix.Extension{
+				Id:       oid,
+				Critical: false,
+				Value:    []byte{}, // Empty value for custom OIDs unless specified
+			})
+		}
+	}
+	return extensions
 }
 
 // setCAConstraints sets CA-specific path length constraints

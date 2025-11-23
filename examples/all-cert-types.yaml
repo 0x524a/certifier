@@ -1,0 +1,70 @@
+certificates:
+  # CA Certificate
+  - commonName: "Example CA"
+    organization: "Example Corp"
+    organizationalUnit: "Security"
+    country: "US"
+    locality: "San Francisco"
+    province: "CA"
+    validity: 3650
+    keyType: "rsa4096"
+    certificateOutputFile: "ca.crt"
+    privateKeyOutputFile: "ca.key"
+    isCA: true
+    maxPathLength: 0
+
+  # Web Server Certificate with SANs
+  - commonName: "example.com"
+    organization: "Example Corp"
+    organizationalUnit: "IT"
+    country: "US"
+    validity: 365
+    keyType: "rsa2048"
+    certificateType: "server"
+    dnsNames:
+      - "example.com"
+      - "www.example.com"
+      - "api.example.com"
+    ipAddresses:
+      - "192.168.1.1"
+      - "127.0.0.1"
+    certificateOutputFile: "server.crt"
+    privateKeyOutputFile: "server.key"
+
+  # Client Certificate
+  - commonName: "client@example.com"
+    organization: "Example Corp"
+    country: "US"
+    validity: 365
+    keyType: "rsa2048"
+    certificateType: "client"
+    emailAddresses:
+      - "client@example.com"
+    certificateOutputFile: "client.crt"
+    privateKeyOutputFile: "client.key"
+
+  # Module Signer Certificate with Custom OID
+  - commonName: "Module Signer"
+    organization: "Example Corp"
+    organizationalUnit: "Security"
+    country: "US"
+    validity: 3650
+    keyType: "rsa4096"
+    certificateType: "server"
+    extendedKeyUsageOIDs:
+      - "2.5.29.37.0"
+    certificateOutputFile: "module-signer.crt"
+    privateKeyOutputFile: "module-signer.key"
+
+  # Mutual TLS Certificate
+  - commonName: "mtls-service"
+    organization: "Example Corp"
+    country: "US"
+    validity: 365
+    keyType: "ecdsa-p256"
+    certificateType: "both"
+    dnsNames:
+      - "mtls-service.local"
+      - "localhost"
+    certificateOutputFile: "mtls.crt"
+    privateKeyOutputFile: "mtls.key"
