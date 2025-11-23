@@ -41,11 +41,11 @@ func TestValidateCertificate(t *testing.T) {
 	}
 
 	tests := []struct {
-		name        string
-		certificate *x509.Certificate
-		config      *cert.ValidationConfig
-		checkValid  bool
-		checkExpired bool
+		name          string
+		certificate   *x509.Certificate
+		config        *cert.ValidationConfig
+		checkValid    bool
+		checkExpired  bool
 		checkHostname bool
 	}{
 		{
@@ -63,11 +63,11 @@ func TestValidateCertificate(t *testing.T) {
 				CheckExpiration: true,
 				AllowExpired:    false,
 			},
-			checkValid:  true,
+			checkValid:   true,
 			checkExpired: true,
 		},
 		{
-			name:        "Expired certificate",
+			name: "Expired certificate",
 			certificate: &x509.Certificate{
 				SerialNumber: big.NewInt(1),
 				Subject:      pkix.Name{CommonName: "expired.com"},
@@ -83,7 +83,7 @@ func TestValidateCertificate(t *testing.T) {
 			checkExpired: false,
 		},
 		{
-			name:        "Not yet valid certificate",
+			name: "Not yet valid certificate",
 			certificate: &x509.Certificate{
 				SerialNumber: big.NewInt(2),
 				Subject:      pkix.Name{CommonName: "future.com"},
@@ -119,7 +119,7 @@ func TestValidateCertificate(t *testing.T) {
 			checkHostname: false,
 		},
 		{
-			name:        "Expired certificate with AllowExpired true",
+			name: "Expired certificate with AllowExpired true",
 			certificate: &x509.Certificate{
 				SerialNumber: big.NewInt(3),
 				Subject:      pkix.Name{CommonName: "expired2.com"},
@@ -224,11 +224,11 @@ func TestValidateChain(t *testing.T) {
 	}
 
 	tests := []struct {
-		name            string
-		leafCert        *x509.Certificate
+		name              string
+		leafCert          *x509.Certificate
 		intermediateCerts []*x509.Certificate
-		rootCerts       []*x509.Certificate
-		shouldFail      bool
+		rootCerts         []*x509.Certificate
+		shouldFail        bool
 	}{
 		{
 			name:       "Valid chain with root only",
