@@ -44,7 +44,7 @@ jobs:
             ./cmd/certifier
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@65d4ab0343823e298e38431890723fb552023ab7
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: binaries
           path: dist/
@@ -57,13 +57,13 @@ jobs:
       - uses: actions/checkout@a5ac7e51b41094c75462b469e6e1a4413fcf3562
 
       - name: Download artifacts
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        uses: actions/download-artifact@f093f21ca4cfa7c75ccbbc2be54da76a0c7e1f05
         with:
           name: binaries
           path: dist/
 
       - name: Create Release
-        uses: softprops/action-gh-release@69032c2b8d1dda3e7b06b3e126ce8ee053d2d5c5
+        uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe
         with:
           files: dist/*
           body: |

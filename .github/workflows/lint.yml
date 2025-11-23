@@ -25,7 +25,7 @@ jobs:
           cache: true
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@3cfe3a4ac270a4c01671651a8dce29d3230e329c
+        uses: golangci/golangci-lint-action@e7fa5ac41e1cf5b7d48e45e42232ce7ada589601
         with:
           version: latest
           args: --timeout 5m
@@ -81,7 +81,7 @@ jobs:
         run: go test -v -coverprofile=coverage.out ./...
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@5ecb98a3c6b747a27926f2d1ccca2b249ba583cda
+        uses: codecov/codecov-action@96b38e9e60ee60a8c3911f4612407bba2f9195fb
         with:
           files: ./coverage.out
           flags: unittests
