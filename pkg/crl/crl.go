@@ -1,0 +1,179 @@
+package crl
+
+import (
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"fmt"
+	"io"
+	"math/big"
+	"time"
+)
+
+// RevokedCertificate represents a revoked certificate entry
+type RevokedCertificate struct {
+	SerialNumber   *big.Int
+	RevocationTime time.Time
+	RevocationReason int // CRL reason code
+}
+
+// CRLConfig holds configuration for CRL generation
+type CRLConfig struct {
+	// The CA certificate that will sign the CRL
+	CAKeyPair *keyPair
+
+	// CA Certificate
+	CACertificate *x509.Certificate
+
+	// List of revoked certificates
+	RevokedCerts []*RevokedCertificate
+
+	// CRL validity period
+	ValidityDays int
+
+	// CRL number (for incremental CRLs)
+	Number int64
+
+	// URLs for CRL distribution
+	DistributionURL string
+}
+
+// keyPair represents a key pair (internal type)
+type keyPair struct {
+	PrivateKey crypto.PrivateKey
+}
+
+// GenerateCRL generates a Certificate Revocation List
+func GenerateCRL(config *CRLConfig) ([]byte, error) {
+	if config == nil {
+		return nil, fmt.Errorf("CRL config is required")
+	}
+	if config.CACertificate == nil {
+		return nil, fmt.Errorf("CA certificate is required")
+	}
+	if config.CAKeyPair == nil || config.CAKeyPair.PrivateKey == nil {
+		return nil, fmt.Errorf("CA private key is required")
+	}
+
+	// Build revoked certificates list
+	var revokedCerts []pkix.RevokedCertificate
+	for _, revoked := range config.RevokedCerts {
+		revokedCerts = append(revokedCerts, pkix.RevokedCertificate{
+			SerialNumber:   revoked.SerialNumber,
+			RevocationTime: revoked.RevocationTime,
+		})
+	}
+
+	// Create CRL template
+	now := time.Now()
+	validity := 30 * 24 * time.Hour
+	if config.ValidityDays > 0 {
+		validity = time.Duration(config.ValidityDays) * 24 * time.Hour
+	}
+
+	crlTemplate := &x509.RevocationList{
+		Issuer:            config.CACertificate.Subject,
+		ThisUpdate:        now,
+		NextUpdate:        now.Add(validity),
+		RevokedCertificates: revokedCerts,
+	}
+
+	// Create CRL with a simple key wrapper
+	signer := &simpleSigner{pk: config.CAKeyPair.PrivateKey}
+
+	// Generate CRL
+	crlBytes, err := x509.CreateRevocationList(
+		rand.Reader,
+		crlTemplate,
+		config.CACertificate,
+		signer,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create CRL: %w", err)
+	}
+
+	return crlBytes, nil
+}
+
+// ParseCRL parses a CRL from DER-encoded bytes
+func ParseCRL(crlData []byte) (*x509.RevocationList, error) {
+	return x509.ParseRevocationList(crlData)
+}
+
+// CheckRevocation checks if a certificate is revoked in the CRL
+func CheckRevocation(cert *x509.Certificate, crl *x509.RevocationList) bool {
+	if cert == nil || crl == nil {
+		return false
+	}
+
+	for _, revoked := range crl.RevokedCertificates {
+		if revoked.SerialNumber.Cmp(cert.SerialNumber) == 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
+// encodeReasonCode encodes a CRL reason code
+func encodeReasonCode(reason int) []byte {
+	// CRL reason codes (per RFC 5280)
+	// 0 = unspecified
+	// 1 = keyCompromise
+	// 2 = cACompromise
+	// 3 = affiliationChanged
+	// 4 = superseded
+	// 5 = cessationOfOperation
+	// 6 = certificateHold
+	// 8 = removeFromCRL
+	// 9 = privilegeWithdrawn
+	// 10 = aACompromise
+
+	if reason < 0 || reason > 10 {
+		reason = 0 // unspecified
+	}
+
+	// Simple DER encoding of integer
+	return []byte{0x02, 0x01, byte(reason)}
+}
+
+// RevocationReason constants
+const (
+	ReasonUnspecified         = 0
+	ReasonKeyCompromise       = 1
+	ReasonCACompromise        = 2
+	ReasonAffiliationChanged  = 3
+	ReasonSuperseded          = 4
+	ReasonCessationOfOperation = 5
+	ReasonCertificateHold     = 6
+	ReasonRemoveFromCRL       = 8
+	ReasonPrivilegeWithdrawn  = 9
+	ReasonAACompromise        = 10
+)
+
+// simpleSigner is a wrapper to make a private key compatible with crypto.Signer
+type simpleSigner struct {
+	pk crypto.PrivateKey
+}
+
+// Public returns the public key
+func (ss *simpleSigner) Public() crypto.PublicKey {
+	if rsaKey, ok := ss.pk.(*rsa.PrivateKey); ok {
+		return rsaKey.Public()
+	}
+	// For other key types, try to get the public key if they implement Public()
+	if pubGetter, ok := ss.pk.(interface{ Public() crypto.PublicKey }); ok {
+		return pubGetter.Public()
+	}
+	return nil
+}
+
+// Sign signs the data
+func (ss *simpleSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+	if rsaKey, ok := ss.pk.(*rsa.PrivateKey); ok {
+		return rsa.SignPKCS1v15(rand, rsaKey, opts.HashFunc(), digest)
+	}
+	return nil, fmt.Errorf("signing with key type %T not supported", ss.pk)
+}

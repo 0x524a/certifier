@@ -1,0 +1,39 @@
+name: SonarQube Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  sonarqube:
+    name: SonarQube Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Run tests with coverage
+        run: |
+          go test -v -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out
+
+      - name: Download SonarScanner
+        uses: SonarSource/sonarcloud-github-action@master
+
+      - name: Run SonarCloud Analysis
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    # Note: You need to add SONAR_TOKEN as a secret in your GitHub repository settings
+    # and configure sonar-project.properties in the root directory

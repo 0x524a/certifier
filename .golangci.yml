@@ -1,0 +1,171 @@
+run:
+  timeout: 5m
+  go: "1.22"
+  skip-dirs-use-default: true
+  skip-files:
+    - ".*_test.go$"
+
+linters:
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - contextcheck
+    - cyclop
+    - decorder
+    - dogsled
+    - dupl
+    - dupword
+    - durationcheck
+    - errcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - exportloopref
+    - forbidigo
+    - forcetypeassert
+    - funlen
+    - gci
+    - gochecknoglobals
+    - gochecknoinits
+    - gocognac
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - godox
+    - goerr113
+    - gofmt
+    - gofumpt
+    - goheader
+    - goimports
+    - gojs
+    - golint
+    - gomnd
+    - gomoddirectives
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - grouper
+    - growee
+    - hexfmt
+    - ifshort
+    - inamedparam
+    - ineffassign
+    - interfacebloat
+    - intrange
+    - ireturn
+    - isnil
+    - lll
+    - loggercheck
+    - maintidx
+    - makezero
+    - misspell
+    - mnd
+    - modimport
+    - mysql
+    - nilnil
+    - nlreturn
+    - noctx
+    - nolintlint
+    - nonamedreturns
+    - nosprintfhostport
+    - nosqlc
+    - nothrow
+    - notusetvar
+    - nounimportedvar
+    - nouzwf
+    - onelineif
+    - perfsprint
+    - prealloc
+    - predeclared
+    - promlinter
+    - protogetter
+    - revive
+    - rowserrcheck
+    - sqlc
+    - staticcheck
+    - tagalign
+    - tagliatelle
+    - tenv
+    - testableexamples
+    - testifylint
+    - testpackage
+    - thelper
+    - tlog
+    - unconvert
+    - underef
+    - unparam
+    - unused
+    - usestdlibvars
+    - varcheck
+    - varnamelen
+    - varptrptrcheck
+    - wastedassign
+    - weakhandling
+    - whitespace
+    - wrapcheck
+    - wsl
+    - zerologlint
+
+linters-settings:
+  cyclop:
+    max-complexity: 10
+  funlen:
+    lines: 100
+    statements: 50
+  gocognac:
+    max-complexity: 10
+  gocyclo:
+    min-complexity: 10
+  govet:
+    enable-all: true
+  lll:
+    line-length: 120
+  misspell:
+    locale: US
+  varnamelen:
+    min-name-length: 2
+    ignore-names:
+      - i
+      - j
+      - k
+      - x
+      - y
+      - z
+      - id
+      - ok
+      - to
+      - rw
+
+issues:
+  exclude:
+    - EXC0001
+    - EXC0002
+    - EXC0003
+    - EXC0004
+    - EXC0005
+    - EXC0006
+    - EXC0007
+    - EXC0008
+    - EXC0009
+    - EXC0010
+    - EXC0011
+    - EXC0012
+    - EXC0013
+    - EXC0014
+    - EXC0015
+  exclude-rules:
+    - path: ".*_test.go$"
+      linters:
+        - goerr113
+        - funlen
+        - dupl
+    - path: "test/"
+      linters:
+        - goerr113
+        - funlen
