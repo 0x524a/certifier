@@ -91,4 +91,3 @@ func GetSignatureAlgorithmForKeyWithPSS(privateKey crypto.PrivateKey, usePSS boo
 		return x509.UnknownSignatureAlgorithm, fmt.Errorf("unsupported key type: %T", privateKey)
 	}
 }
-
