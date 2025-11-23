@@ -4682,3 +4682,190 @@ func TestViewCertificateDetailsCmdValidFile(t *testing.T) {
 	}
 }
 
+// TestGenerateCertFromFileCmdWithValidConfig tests GenerateCertFromFileCmd with valid configuration
+func TestGenerateCertFromFileCmdWithValidConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `certificates:
+  - commonName: valid-cert.example.com
+    organization: Test Org
+    country: US
+    isCA: false
+    validity: 365
+    keyType: rsa2048
+    certificateOutputFile: valid.crt
+    privateKeyOutputFile: valid.key
+`
+	
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	
+	outDir := filepath.Join(tmpDir, "output")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	
+	oldCwd, _ := os.Getwd()
+	defer os.Chdir(oldCwd)
+	os.Chdir(outDir)
+	
+	err := GenerateCertFromFileCmd(configPath)
+	if err != nil {
+		t.Errorf("GenerateCertFromFileCmd returned error: %v", err)
+	}
+}
+
+// TestGenerateCertFromFileCmdWithCA tests GenerateCertFromFileCmd with CA
+func TestGenerateCertFromFileCmdWithCA(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "ca-config.yaml")
+	configContent := `certificates:
+  - commonName: Test CA Root
+    organization: Test Org
+    country: US
+    isCA: true
+    validity: 3650
+    keyType: rsa2048
+    certificateOutputFile: root-ca.crt
+    privateKeyOutputFile: root-ca.key
+`
+	
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	
+	outDir := filepath.Join(tmpDir, "output")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	
+	oldCwd, _ := os.Getwd()
+	defer os.Chdir(oldCwd)
+	os.Chdir(outDir)
+	
+	err := GenerateCertFromFileCmd(configPath)
+	if err != nil {
+		t.Errorf("GenerateCertFromFileCmd with CA returned error: %v", err)
+	}
+}
+
+// TestGenerateCertFromFileCmdMultiple tests GenerateCertFromFileCmd with multiple certs
+func TestGenerateCertFromFileCmdMultiple(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "multi.yaml")
+	configContent := `certificates:
+  - commonName: cert1.example.com
+    organization: Org1
+    country: US
+    isCA: false
+    validity: 365
+    keyType: rsa2048
+    certificateOutputFile: cert1.crt
+    privateKeyOutputFile: cert1.key
+  - commonName: cert2.example.com
+    organization: Org2
+    country: US
+    isCA: false
+    validity: 365
+    keyType: ecdsa-p256
+    certificateOutputFile: cert2.crt
+    privateKeyOutputFile: cert2.key
+`
+	
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	
+	outDir := filepath.Join(tmpDir, "output")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	
+	oldCwd, _ := os.Getwd()
+	defer os.Chdir(oldCwd)
+	os.Chdir(outDir)
+	
+	err := GenerateCertFromFileCmd(configPath)
+	if err != nil {
+		t.Errorf("GenerateCertFromFileCmd multiple returned error: %v", err)
+	}
+}
+
+// TestGenerateCSRFromFileCmdWithValidConfig tests GenerateCSRFromFileCmd with valid config
+func TestGenerateCSRFromFileCmdWithValidConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "csr.yaml")
+	configContent := `certificates:
+  - commonName: valid-csr.example.com
+    organization: Test Org
+    country: US
+    isCSR: true
+    validity: 365
+    keyType: rsa2048
+    csrOutputFile: valid.csr
+    privateKeyOutputFile: valid.key
+`
+	
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	
+	outDir := filepath.Join(tmpDir, "output")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	
+	oldCwd, _ := os.Getwd()
+	defer os.Chdir(oldCwd)
+	os.Chdir(outDir)
+	
+	err := GenerateCSRFromFileCmd(configPath)
+	if err != nil {
+		t.Errorf("GenerateCSRFromFileCmd returned error: %v", err)
+	}
+}
+
+// TestGenerateCSRFromFileCmdMultiple tests GenerateCSRFromFileCmd with multiple CSRs
+func TestGenerateCSRFromFileCmdMultiple(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "multi-csr.yaml")
+	configContent := `certificates:
+  - commonName: csr1.example.com
+    organization: Org1
+    country: US
+    isCSR: true
+    validity: 365
+    keyType: rsa2048
+    csrOutputFile: csr1.csr
+    privateKeyOutputFile: csr1.key
+  - commonName: csr2.example.com
+    organization: Org2
+    country: US
+    isCSR: true
+    validity: 365
+    keyType: ed25519
+    csrOutputFile: csr2.csr
+    privateKeyOutputFile: csr2.key
+`
+	
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	
+	outDir := filepath.Join(tmpDir, "output")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	
+	oldCwd, _ := os.Getwd()
+	defer os.Chdir(oldCwd)
+	os.Chdir(outDir)
+	
+	err := GenerateCSRFromFileCmd(configPath)
+	if err != nil {
+		t.Errorf("GenerateCSRFromFileCmd multiple returned error: %v", err)
+	}
+}
+
+
