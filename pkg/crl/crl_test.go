@@ -70,13 +70,13 @@ func TestGenerateCRL(t *testing.T) {
 				CAKeyPair:     &keyPair{PrivateKey: caKey},
 				RevokedCerts: []*RevokedCertificate{
 					{
-						SerialNumber:   big.NewInt(123),
-						RevocationTime: time.Now(),
+						SerialNumber:     big.NewInt(123),
+						RevocationTime:   time.Now(),
 						RevocationReason: ReasonKeyCompromise,
 					},
 					{
-						SerialNumber:   big.NewInt(456),
-						RevocationTime: time.Now(),
+						SerialNumber:     big.NewInt(456),
+						RevocationTime:   time.Now(),
 						RevocationReason: ReasonSuperseded,
 					},
 				},
@@ -242,10 +242,10 @@ func TestCheckRevocation(t *testing.T) {
 	}
 
 	tests := []struct {
-		name      string
-		cert      *x509.Certificate
-		crl       *x509.RevocationList
-		revoked   bool
+		name    string
+		cert    *x509.Certificate
+		crl     *x509.RevocationList
+		revoked bool
 	}{
 		{
 			name:    "revoked certificate",

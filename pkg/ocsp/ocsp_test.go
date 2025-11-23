@@ -47,9 +47,9 @@ func TestGenerateOCSPResponse(t *testing.T) {
 
 func TestParseOCSPResponse(t *testing.T) {
 	tests := []struct {
-		name     string
+		name      string
 		respBytes []byte
-		wantErr  bool
+		wantErr   bool
 	}{
 		{
 			name:      "empty response",
@@ -107,11 +107,11 @@ func TestVerifyOCSPResponse(t *testing.T) {
 	}
 
 	tests := []struct {
-		name    string
+		name      string
 		respBytes []byte
-		cert    *x509.Certificate
-		issuer  *x509.Certificate
-		wantErr bool
+		cert      *x509.Certificate
+		issuer    *x509.Certificate
+		wantErr   bool
 	}{
 		{
 			name:      "nil certificate",
