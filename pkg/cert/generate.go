@@ -38,30 +38,14 @@ func GenerateSelfSignedCertificate(config *CertificateConfig) (*x509.Certificate
 		return nil, nil, fmt.Errorf("failed to generate serial number: %w", err)
 	}
 
+	now := time.Now()
+	subject := buildSubjectName(config)
 	template := &x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			CommonName:         config.CommonName,
-			Country:            makeStringSlice(config.Country),
-			Organization:       makeStringSlice(config.Organization),
-			OrganizationalUnit: makeStringSlice(config.OrganizationalUnit),
-			Locality:           makeStringSlice(config.Locality),
-			Province:           makeStringSlice(config.Province),
-			StreetAddress:      makeStringSlice(config.StreetAddress),
-			PostalCode:         makeStringSlice(config.PostalCode),
-		},
-		Issuer: pkix.Name{
-			CommonName:         config.CommonName,
-			Country:            makeStringSlice(config.Country),
-			Organization:       makeStringSlice(config.Organization),
-			OrganizationalUnit: makeStringSlice(config.OrganizationalUnit),
-			Locality:           makeStringSlice(config.Locality),
-			Province:           makeStringSlice(config.Province),
-			StreetAddress:      makeStringSlice(config.StreetAddress),
-			PostalCode:         makeStringSlice(config.PostalCode),
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(24 * time.Hour * time.Duration(config.Validity)),
+		SerialNumber:          serialNumber,
+		Subject:               subject,
+		Issuer:                subject,
+		NotBefore:             now,
+		NotAfter:              now.Add(24 * time.Hour * time.Duration(config.Validity)),
 		KeyUsage:              config.KeyUsage,
 		BasicConstraintsValid: config.BasicConstraintsValid || config.IsCA,
 		IsCA:                  config.IsCA,
@@ -70,34 +54,16 @@ func GenerateSelfSignedCertificate(config *CertificateConfig) (*x509.Certificate
 		SignatureAlgorithm:    sigAlg,
 	}
 
-	if config.IsCA {
-		if config.MaxPathLength < 0 {
-			template.MaxPathLen = -1
-		} else {
-			template.MaxPathLen = config.MaxPathLength
-		}
-		template.MaxPathLenZero = (config.MaxPathLength == 0)
-	}
-
 	// Set default key usage if not provided
-	if config.KeyUsage == 0 {
-		if config.IsCA {
-			template.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageCRLSign
-		} else {
-			template.KeyUsage = x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment
-		}
+	setDefaultKeyUsage(template, config.IsCA)
+
+	// Configure CA-specific settings
+	if config.IsCA {
+		setCAConstraints(template, config.MaxPathLength)
 	}
 
 	// Add extensions
-	if len(config.CRLDistributionPoints) > 0 {
-		template.CRLDistributionPoints = config.CRLDistributionPoints
-	}
-	if len(config.OCSPServer) > 0 {
-		template.OCSPServer = config.OCSPServer
-	}
-	if len(config.IssuingCertificateURL) > 0 {
-		template.IssuingCertificateURL = config.IssuingCertificateURL
-	}
+	addCertificateExtensions(template, config.CRLDistributionPoints, config.OCSPServer, config.IssuingCertificateURL)
 
 	// Self-sign the certificate
 	certBytes, err := x509.CreateCertificate(rand.Reader, template, template, getPublicKey(privateKey), privateKey)
@@ -154,18 +120,10 @@ func GenerateCASignedCertificate(
 		validity = time.Duration(certConfig.Validity) * 24 * time.Hour
 	}
 
+	subject := buildSubjectName(certConfig)
 	template := &x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			CommonName:         certConfig.CommonName,
-			Country:            makeStringSlice(certConfig.Country),
-			Organization:       makeStringSlice(certConfig.Organization),
-			OrganizationalUnit: makeStringSlice(certConfig.OrganizationalUnit),
-			Locality:           makeStringSlice(certConfig.Locality),
-			Province:           makeStringSlice(certConfig.Province),
-			StreetAddress:      makeStringSlice(certConfig.StreetAddress),
-			PostalCode:         makeStringSlice(certConfig.PostalCode),
-		},
+		SerialNumber:       serialNumber,
+		Subject:            subject,
 		NotBefore:          now,
 		NotAfter:           now.Add(validity),
 		KeyUsage:           certConfig.KeyUsage,
@@ -176,31 +134,16 @@ func GenerateCASignedCertificate(
 	}
 
 	// Set default key usage
-	if template.KeyUsage == 0 {
-		if certConfig.IsCA {
-			template.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageCRLSign
-		} else {
-			template.KeyUsage = x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment
-		}
-	}
+	setDefaultKeyUsage(template, certConfig.IsCA)
 
+	// Configure CA-specific settings
 	if certConfig.IsCA {
 		template.BasicConstraintsValid = true
-		if certConfig.MaxPathLength < 0 {
-			template.MaxPathLen = -1
-		} else {
-			template.MaxPathLen = certConfig.MaxPathLength
-		}
-		template.MaxPathLenZero = (certConfig.MaxPathLength == 0)
+		setCAConstraints(template, certConfig.MaxPathLength)
 	}
 
 	// Add extensions
-	if len(certConfig.CRLDistributionPoints) > 0 {
-		template.CRLDistributionPoints = certConfig.CRLDistributionPoints
-	}
-	if len(certConfig.OCSPServer) > 0 {
-		template.OCSPServer = certConfig.OCSPServer
-	}
+	addCertificateExtensions(template, certConfig.CRLDistributionPoints, certConfig.OCSPServer, nil)
 
 	// Sign with CA
 	certBytes, err := x509.CreateCertificate(rand.Reader, template, caCert, getPublicKey(privateKey), caPrivateKey)
@@ -281,5 +224,53 @@ func getPublicKey(privateKey crypto.PrivateKey) crypto.PublicKey {
 		return key.Public()
 	default:
 		return nil
+	}
+}
+
+// buildSubjectName constructs a pkix.Name from certificate config
+func buildSubjectName(config *CertificateConfig) pkix.Name {
+	return pkix.Name{
+		CommonName:         config.CommonName,
+		Country:            makeStringSlice(config.Country),
+		Organization:       makeStringSlice(config.Organization),
+		OrganizationalUnit: makeStringSlice(config.OrganizationalUnit),
+		Locality:           makeStringSlice(config.Locality),
+		Province:           makeStringSlice(config.Province),
+		StreetAddress:      makeStringSlice(config.StreetAddress),
+		PostalCode:         makeStringSlice(config.PostalCode),
+	}
+}
+
+// setDefaultKeyUsage sets default key usage based on whether cert is a CA
+func setDefaultKeyUsage(template *x509.Certificate, isCA bool) {
+	if template.KeyUsage == 0 {
+		if isCA {
+			template.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageCRLSign
+		} else {
+			template.KeyUsage = x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment
+		}
+	}
+}
+
+// setCAConstraints sets CA-specific path length constraints
+func setCAConstraints(template *x509.Certificate, maxPathLength int) {
+	if maxPathLength < 0 {
+		template.MaxPathLen = -1
+	} else {
+		template.MaxPathLen = maxPathLength
+	}
+	template.MaxPathLenZero = (maxPathLength == 0)
+}
+
+// addCertificateExtensions adds CRL distribution and OCSP URLs to certificate
+func addCertificateExtensions(template *x509.Certificate, crlDPs []string, ocspServers []string, issuingURL []string) {
+	if len(crlDPs) > 0 {
+		template.CRLDistributionPoints = crlDPs
+	}
+	if len(ocspServers) > 0 {
+		template.OCSPServer = ocspServers
+	}
+	if len(issuingURL) > 0 {
+		template.IssuingCertificateURL = issuingURL
 	}
 }

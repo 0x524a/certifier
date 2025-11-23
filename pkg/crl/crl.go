@@ -78,6 +78,7 @@ func GenerateCRL(config *CRLConfig) ([]byte, error) {
 		ThisUpdate:          now,
 		NextUpdate:          now.Add(validity),
 		RevokedCertificates: revokedCerts,
+		Number:              big.NewInt(config.Number),
 	}
 
 	// Create CRL with a simple key wrapper
