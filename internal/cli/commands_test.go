@@ -714,8 +714,10 @@ func TestGenerateCertFromFile(t *testing.T) {
 
 	// Change to temp directory so certificates are created there
 	oldCwd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldCwd)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldCwd) }()
 
 	// Run batch generation
 	output := captureOutput(func() {
@@ -771,8 +773,10 @@ func TestGenerateCSRFromFile(t *testing.T) {
 
 	// Change to temp directory so CSRs are created there
 	oldCwd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldCwd)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldCwd) }()
 
 	// Run batch CSR generation
 	output := captureOutput(func() {
@@ -827,8 +831,10 @@ func TestGenerateCertFromFile_WithCA(t *testing.T) {
 
 	// Change to temp directory
 	oldCwd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldCwd)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldCwd) }()
 
 	// Run batch generation
 	GenerateCertFromFile(configFile)
@@ -880,8 +886,10 @@ func TestGenerateCertFromFile_WithCustomOIDs(t *testing.T) {
 
 	// Change to temp directory
 	oldCwd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldCwd)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldCwd) }()
 
 	// Run batch generation
 	GenerateCertFromFile(configFile)
@@ -918,8 +926,10 @@ func TestGenerateCertFromFile_MixedCertAndCSR(t *testing.T) {
 
 	// Change to temp directory
 	oldCwd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldCwd)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldCwd) }()
 
 	// Run batch generation
 	output := captureOutput(func() {
@@ -965,8 +975,10 @@ func TestGenerateCSRFromFile_WithDifferentKeyTypes(t *testing.T) {
 
 	// Change to temp directory
 	oldCwd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldCwd)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldCwd) }()
 
 	// Run batch CSR generation
 	GenerateCSRFromFile(configFile)
@@ -1019,8 +1031,10 @@ func TestGenerateCertFromFile_WithAllFields(t *testing.T) {
 
 	// Change to temp directory
 	oldCwd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldCwd)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldCwd) }()
 
 	// Run batch generation
 	GenerateCertFromFile(configFile)
