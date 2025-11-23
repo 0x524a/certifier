@@ -9,12 +9,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c75462b469e6e1a4413fcf3562
         with:
           fetch-depth: 2
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@41dfa500b0f3012ba46f61f27c5a910bea2c18ec
 
       - name: Install dependencies
         run: go mod download
@@ -23,7 +23,7 @@ jobs:
         run: go test -v -coverprofile=coverage.out ./...
 
       - name: Upload results to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@5ecb98a3c6b747a27926f2d1ccca2b249ba583cda
         with:
           files: ./coverage.out
           flags: unittests

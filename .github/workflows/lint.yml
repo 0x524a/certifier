@@ -14,18 +14,18 @@ jobs:
       contents: read
       checks: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@a5ac7e51b41094c75462b469e6e1a4413fcf3562
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491
         with:
           go-version: '1.22'
           cache: true
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@3cfe3a4ac270a4c01671651a8dce29d3230e329c
         with:
           version: latest
           args: --timeout 5m
@@ -34,10 +34,10 @@ jobs:
     name: Check Go Formatting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@a5ac7e51b41094c75462b469e6e1a4413fcf3562
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491
         with:
           go-version: '1.22'
           cache: true
@@ -54,10 +54,10 @@ jobs:
     name: Go Vet
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@a5ac7e51b41094c75462b469e6e1a4413fcf3562
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491
         with:
           go-version: '1.22'
           cache: true
@@ -69,10 +69,10 @@ jobs:
     name: Run Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@a5ac7e51b41094c75462b469e6e1a4413fcf3562
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491
         with:
           go-version: '1.22'
           cache: true
@@ -81,7 +81,7 @@ jobs:
         run: go test -v -coverprofile=coverage.out ./...
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@5ecb98a3c6b747a27926f2d1ccca2b249ba583cda
         with:
           files: ./coverage.out
           flags: unittests
