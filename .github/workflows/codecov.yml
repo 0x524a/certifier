@@ -23,7 +23,7 @@ jobs:
         run: go test -v -coverprofile=coverage.out ./...
 
       - name: Upload results to Codecov
-        uses: codecov/codecov-action@5ecb98a3c6b747a27926f2d1ccca2b249ba583cda
+        uses: codecov/codecov-action@96b38e9e60ee60a8c3911f4612407bba2f9195fb
         with:
           files: ./coverage.out
           flags: unittests
