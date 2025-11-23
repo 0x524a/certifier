@@ -108,13 +108,6 @@ func (ccf *CertificateConfigFile) ToCertificateConfig() (*cert.CertificateConfig
 		ccf.MaxPathLength = -1
 	}
 
-	// Convert IP addresses
-	var ipAddresses []any
-	for _, ip := range ccf.IPAddresses {
-		// Will be parsed during certificate generation
-		ipAddresses = append(ipAddresses, ip)
-	}
-
 	config := &cert.CertificateConfig{
 		CommonName:               ccf.CommonName,
 		Country:                  ccf.Country,
@@ -136,12 +129,6 @@ func (ccf *CertificateConfigFile) ToCertificateConfig() (*cert.CertificateConfig
 		OCSPServer:               ccf.OCSPServer,
 		IssuingCertificateURL:    ccf.IssuingCertificateURL,
 		AuthorityInfoAccessOCSP: ccf.AuthorityInfoAccessOCSP,
-	}
-
-	// Parse IP addresses
-	for range ccf.IPAddresses {
-		// IP parsing will be handled during certificate generation
-		// Store as string for now
 	}
 
 	return config, nil
