@@ -1472,4 +1472,372 @@ func TestGenerateCACmd_ErrorHandling(t *testing.T) {
 	}
 }
 
+// TestGenerateCertCmd tests that GenerateCertCmd returns proper errors and generates certificates
+func TestGenerateCertCmd(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      []string
+		expectErr bool
+		checkFile bool
+	}{
+		{
+			name:      "Valid certificate generation",
+			args:      []string{"-cn", "Test Cert", "-org", "TestOrg", "-non-interactive"},
+			expectErr: false,
+			checkFile: true,
+		},
+		{
+			name:      "Valid certificate with DNS names",
+			args:      []string{"-cn", "Test Cert", "-org", "TestOrg", "-dns", "example.com,www.example.com", "-non-interactive"},
+			expectErr: false,
+			checkFile: true,
+		},
+		{
+			name:      "Missing CN in non-interactive mode",
+			args:      []string{"-non-interactive"},
+			expectErr: true,
+			checkFile: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			
+			// Add output file to args
+			args := append(tt.args, "-output", filepath.Join(tmpDir, "cert.crt"), "-key-output", filepath.Join(tmpDir, "cert.key"))
+			
+			err := GenerateCertCmd(args)
+			
+			if (err != nil) != tt.expectErr {
+				t.Errorf("GenerateCertCmd() error = %v, expectErr = %v", err, tt.expectErr)
+			}
+			
+			if tt.checkFile {
+				if _, err := os.Stat(filepath.Join(tmpDir, "cert.crt")); err != nil {
+					t.Errorf("Certificate file not created: %v", err)
+				}
+				if _, err := os.Stat(filepath.Join(tmpDir, "cert.key")); err != nil {
+					t.Errorf("Key file not created: %v", err)
+				}
+			}
+		})
+	}
+}
+
+// TestGenerateCertCmd_ErrorHandling tests that GenerateCertCmd returns proper errors
+func TestGenerateCertCmd_ErrorHandling(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+		errText string
+	}{
+		{
+			name:    "Missing CN in non-interactive",
+			args:    []string{"-non-interactive"},
+			wantErr: true,
+			errText: "required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			args := append(tt.args, "-output", filepath.Join(tmpDir, "cert.crt"), "-key-output", filepath.Join(tmpDir, "cert.key"))
+			
+			err := GenerateCertCmd(args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GenerateCertCmd() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && !strings.Contains(strings.ToLower(err.Error()), tt.errText) {
+				t.Errorf("GenerateCertCmd() error = %v, should contain '%s'", err, tt.errText)
+			}
+		})
+	}
+}
+
+// TestGenerateCertCmd_WithCA tests generating a certificate signed by a CA
+func TestGenerateCertCmd_WithCA(t *testing.T) {
+	tmpDir := t.TempDir()
+	
+	// First, create a CA certificate
+	caArgs := []string{
+		"-cn", "Test CA",
+		"-org", "TestOrg",
+		"-non-interactive",
+		"-output", filepath.Join(tmpDir, "ca.crt"),
+		"-key-output", filepath.Join(tmpDir, "ca.key"),
+	}
+	
+	err := GenerateCACmd(caArgs)
+	if err != nil {
+		t.Fatalf("Failed to generate CA: %v", err)
+	}
+	
+	// Now generate a certificate signed by the CA
+	certArgs := []string{
+		"-cn", "Test Cert",
+		"-org", "TestOrg",
+		"-non-interactive",
+		"-ca-cert", filepath.Join(tmpDir, "ca.crt"),
+		"-ca-key", filepath.Join(tmpDir, "ca.key"),
+		"-output", filepath.Join(tmpDir, "cert.crt"),
+		"-key-output", filepath.Join(tmpDir, "cert.key"),
+	}
+	
+	err = GenerateCertCmd(certArgs)
+	if err != nil {
+		t.Errorf("GenerateCertCmd with CA failed: %v", err)
+	}
+	
+	// Verify the certificate was created
+	if _, err := os.Stat(filepath.Join(tmpDir, "cert.crt")); err != nil {
+		t.Errorf("Certificate file not created: %v", err)
+	}
+}
+
+// TestGenerateCSRCmd tests that GenerateCSRCmd returns proper errors and generates CSRs
+func TestGenerateCSRCmd(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      []string
+		expectErr bool
+		checkFile bool
+	}{
+		{
+			name:      "Valid CSR generation",
+			args:      []string{"-cn", "Test CSR", "-org", "TestOrg", "-non-interactive"},
+			expectErr: false,
+			checkFile: true,
+		},
+		{
+			name:      "Valid CSR with DNS names",
+			args:      []string{"-cn", "Test CSR", "-org", "TestOrg", "-dns", "example.com,www.example.com", "-non-interactive"},
+			expectErr: false,
+			checkFile: true,
+		},
+		{
+			name:      "Missing CN in non-interactive mode",
+			args:      []string{"-non-interactive"},
+			expectErr: true,
+			checkFile: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			
+			// Add output file to args
+			args := append(tt.args, "-output", filepath.Join(tmpDir, "cert.csr"), "-key-output", filepath.Join(tmpDir, "cert.key"))
+			
+			err := GenerateCSRCmd(args)
+			
+			if (err != nil) != tt.expectErr {
+				t.Errorf("GenerateCSRCmd() error = %v, expectErr = %v", err, tt.expectErr)
+			}
+			
+			if tt.checkFile {
+				if _, err := os.Stat(filepath.Join(tmpDir, "cert.csr")); err != nil {
+					t.Errorf("CSR file not created: %v", err)
+				}
+				if _, err := os.Stat(filepath.Join(tmpDir, "cert.key")); err != nil {
+					t.Errorf("Key file not created: %v", err)
+				}
+			}
+		})
+	}
+}
+
+// TestGenerateCSRCmd_ErrorHandling tests that GenerateCSRCmd returns proper errors
+func TestGenerateCSRCmd_ErrorHandling(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+		errText string
+	}{
+		{
+			name:    "Missing CN in non-interactive",
+			args:    []string{"-non-interactive"},
+			wantErr: true,
+			errText: "required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			args := append(tt.args, "-output", filepath.Join(tmpDir, "cert.csr"), "-key-output", filepath.Join(tmpDir, "cert.key"))
+			
+			err := GenerateCSRCmd(args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GenerateCSRCmd() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && !strings.Contains(strings.ToLower(err.Error()), tt.errText) {
+				t.Errorf("GenerateCSRCmd() error = %v, should contain '%s'", err, tt.errText)
+			}
+		})
+	}
+}
+
+// TestViewCertCmd tests that ViewCertCmd returns proper errors and displays certificate details
+func TestViewCertCmd(t *testing.T) {
+	// First create a test certificate
+	tmpDir := t.TempDir()
+	
+	certCfg := &cert.CertificateConfig{
+		CommonName:   "Test Cert",
+		Organization: "Test Org",
+		Validity:     365,
+		KeyType:      "rsa2048",
+	}
+
+	testCert, _, err := cert.GenerateSelfSignedCertificate(certCfg)
+	if err != nil {
+		t.Fatalf("Failed to generate test certificate: %v", err)
+	}
+
+	certFile := filepath.Join(tmpDir, "test.crt")
+	certPEM, _ := encoding.EncodeCertificateToPEM(testCert)
+	os.WriteFile(certFile, certPEM, 0644)
+
+	tests := []struct {
+		name      string
+		args      []string
+		expectErr bool
+	}{
+		{
+			name:      "View valid certificate",
+			args:      []string{"-cert", certFile},
+			expectErr: false,
+		},
+		{
+			name:      "Missing certificate file",
+			args:      []string{},
+			expectErr: true,
+		},
+		{
+			name:      "Non-existent certificate file",
+			args:      []string{"-cert", "/nonexistent/cert.crt"},
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ViewCertCmd(tt.args)
+			if (err != nil) != tt.expectErr {
+				t.Errorf("ViewCertCmd() error = %v, expectErr = %v", err, tt.expectErr)
+			}
+		})
+	}
+}
+
+// TestViewCACmd tests that ViewCACmd returns proper errors and displays CA details
+func TestViewCACmd(t *testing.T) {
+	// First create a test CA certificate
+	tmpDir := t.TempDir()
+	
+	caCfg := &cert.CertificateConfig{
+		CommonName:    "Test CA",
+		Organization:  "Test Org",
+		IsCA:          true,
+		MaxPathLength: -1,
+		Validity:      3650,
+		KeyType:       "rsa2048",
+	}
+
+	caCert, _, err := cert.GenerateSelfSignedCertificate(caCfg)
+	if err != nil {
+		t.Fatalf("Failed to generate test CA: %v", err)
+	}
+
+	certFile := filepath.Join(tmpDir, "test-ca.crt")
+	certPEM, _ := encoding.EncodeCertificateToPEM(caCert)
+	os.WriteFile(certFile, certPEM, 0644)
+
+	tests := []struct {
+		name      string
+		args      []string
+		expectErr bool
+	}{
+		{
+			name:      "View valid CA",
+			args:      []string{"-cert", certFile},
+			expectErr: false,
+		},
+		{
+			name:      "Missing CA file",
+			args:      []string{},
+			expectErr: true,
+		},
+		{
+			name:      "Non-existent CA file",
+			args:      []string{"-cert", "/nonexistent/ca.crt"},
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ViewCACmd(tt.args)
+			if (err != nil) != tt.expectErr {
+				t.Errorf("ViewCACmd() error = %v, expectErr = %v", err, tt.expectErr)
+			}
+		})
+	}
+}
+
+// TestViewCertificateDetailsCmd tests ViewCertificateDetailsCmd error handling
+func TestViewCertificateDetailsCmd(t *testing.T) {
+	tmpDir := t.TempDir()
+	
+	caCfg := &cert.CertificateConfig{
+		CommonName:   "Test Cert",
+		Organization: "Test Org",
+		Validity:     365,
+		KeyType:      "rsa2048",
+	}
+
+	testCert, _, err := cert.GenerateSelfSignedCertificate(caCfg)
+	if err != nil {
+		t.Fatalf("Failed to generate test certificate: %v", err)
+	}
+
+	certFile := filepath.Join(tmpDir, "test.crt")
+	certPEM, _ := encoding.EncodeCertificateToPEM(testCert)
+	os.WriteFile(certFile, certPEM, 0644)
+
+	tests := []struct {
+		name      string
+		certFile  string
+		expectErr bool
+	}{
+		{
+			name:      "Valid certificate",
+			certFile:  certFile,
+			expectErr: false,
+		},
+		{
+			name:      "Non-existent file",
+			certFile:  "/nonexistent/cert.crt",
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ViewCertificateDetailsCmd(tt.certFile)
+			if (err != nil) != tt.expectErr {
+				t.Errorf("ViewCertificateDetailsCmd() error = %v, expectErr = %v", err, tt.expectErr)
+			}
+		})
+	}
+}
+
+
 

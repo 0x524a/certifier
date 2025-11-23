@@ -176,9 +176,9 @@ func GenerateCA(args []string) {
 	}
 }
 
-// GenerateCert generates a certificate
-func GenerateCert(args []string) {
-	cmd := flag.NewFlagSet("cert generate", flag.ExitOnError)
+// GenerateCertCmd generates a certificate and returns an error instead of exiting
+func GenerateCertCmd(args []string) error {
+	cmd := flag.NewFlagSet("cert generate", flag.ContinueOnError)
 	cn := cmd.String("cn", "", "Common Name (required)")
 	country := cmd.String("country", "US", "Country")
 	org := cmd.String("org", "", "Organization")
@@ -199,210 +199,82 @@ func GenerateCert(args []string) {
 	nonInteractive := cmd.Bool("non-interactive", false, "Enable non-interactive mode (requires --cn)")
 
 	if err := cmd.Parse(args); err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error parsing flags: %w", err)
 	}
 
 	// Handle file-based configuration
 	if *configFile != "" {
-		GenerateCertFromFile(*configFile)
-		return
+		return GenerateCertFromFileCmd(*configFile)
 	}
 
-	var config *cert.CertificateConfig
-	var certOut string
-	var keyOut string
+	if *cn == "" && !(!*nonInteractive && *cn == "") {
+		return fmt.Errorf("common Name (--cn) is required for non-interactive mode")
+	}
+
+	var dnsNamesList []string
+	if *dnsNames != "" {
+		dnsNamesList = strings.Split(*dnsNames, ",")
+		for i, name := range dnsNamesList {
+			dnsNamesList[i] = strings.TrimSpace(name)
+		}
+	}
+
+	var ipAddrsList []net.IP
+	if *ipAddrs != "" {
+		for _, addr := range strings.Split(*ipAddrs, ",") {
+			ip := net.ParseIP(strings.TrimSpace(addr))
+			if ip != nil {
+				ipAddrsList = append(ipAddrsList, ip)
+			}
+		}
+	}
+
+	var extOIDsList []string
+	if *extKeyUsageOIDs != "" {
+		extOIDsList = strings.Split(*extKeyUsageOIDs, ",")
+		for i, oid := range extOIDsList {
+			extOIDsList[i] = strings.TrimSpace(oid)
+		}
+	}
+
 	var caCert *x509.Certificate
 	var caPrivateKey interface{}
 
-	// Use interactive mode by default if no CN provided and not explicitly non-interactive
-	useInteractive := !*nonInteractive && *cn == ""
-
-	if useInteractive {
-		// Interactive mode
-		im := NewInteractiveMode()
-		fmt.Println("\n╔════════════════════════════════════════════════════════════╗")
-		fmt.Println("║         CERTIFICATE GENERATION - INTERACTIVE MODE           ║")
-		fmt.Println("╚════════════════════════════════════════════════════════════╝")
-
-		// Get subject information
-		subject := im.PromptSubjectInfo()
-		if subject["commonName"] == "" {
-			fmt.Fprintf(os.Stderr, "Error: Common Name is required\n")
-			os.Exit(1)
+	if *caCertFile != "" && *caKeyFile != "" {
+		caCertPEM, err := os.ReadFile(*caCertFile)
+		if err != nil {
+			return fmt.Errorf("error reading CA certificate: %w", err)
 		}
 
-		// Get key type
-		keyTypeStr := im.PromptKeyType()
-
-		// Get certificate type
-		certTypeStr := im.PromptCertificateType()
-
-		// Get validity
-		validity := im.PromptValidity()
-
-		// Get DNS names (SANs)
-		dnsNamesList := im.PromptDNSNames()
-
-		// Get IP addresses (SANs)
-		ipAddressList := im.PromptIPAddresses()
-
-		// Get custom Extended Key Usage OIDs
-		extOIDsList := im.PromptExtendedKeyUsageOIDs()
-
-		// Ask about CA signing
-		wantCA := im.PromptYesNo("Sign with existing CA?", false)
-
-		if wantCA {
-			caCertPath := im.PromptString("CA certificate file", "ca.crt")
-			caKeyPath := im.PromptString("CA private key file", "ca.key")
-
-			caCertPEM, err := os.ReadFile(caCertPath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error reading CA certificate: %v\n", err)
-				os.Exit(1)
-			}
-
-			caKeyPEM, err := os.ReadFile(caKeyPath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error reading CA key: %v\n", err)
-				os.Exit(1)
-			}
-
-			caCert, err = encoding.DecodeCertificateFromPEM(caCertPEM)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error parsing CA certificate: %v\n", err)
-				os.Exit(1)
-			}
-
-			caPrivateKey, err = encoding.DecodePrivateKeyFromPEM(caKeyPEM)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error parsing CA key: %v\n", err)
-				os.Exit(1)
-			}
+		caKeyPEM, err := os.ReadFile(*caKeyFile)
+		if err != nil {
+			return fmt.Errorf("error reading CA key: %w", err)
 		}
 
-		// Get output files
-		certOut = im.PromptFileOutput("cert.crt")
-		keyOut = im.PromptFileOutput("cert.key")
-
-		// Create config
-		config = &cert.CertificateConfig{
-			CommonName:           subject["commonName"],
-			Country:              subject["country"],
-			Organization:         subject["organization"],
-			OrganizationalUnit:   subject["organizationalUnit"],
-			Locality:             subject["locality"],
-			Province:             subject["province"],
-			KeyType:              cert.KeyType(keyTypeStr),
-			CertType:             cert.CertificateType(certTypeStr),
-			Validity:             validity,
-			DNSNames:             dnsNamesList,
-			IPAddresses:          ipAddressList,
-			ExtendedKeyUsageOIDs: extOIDsList,
+		caCert, err = encoding.DecodeCertificateFromPEM(caCertPEM)
+		if err != nil {
+			return fmt.Errorf("error parsing CA certificate: %w", err)
 		}
 
-		// Display summary
-		summary := map[string]interface{}{
-			"Common Name":      config.CommonName,
-			"Organization":     config.Organization,
-			"Key Type":         string(config.KeyType),
-			"Certificate Type": string(config.CertType),
-			"Validity":         fmt.Sprintf("%d days", config.Validity),
-			"DNS Names":        strings.Join(dnsNamesList, ", "),
+		caPrivateKey, err = encoding.DecodePrivateKeyFromPEM(caKeyPEM)
+		if err != nil {
+			return fmt.Errorf("error parsing CA key: %w", err)
 		}
-		if len(extOIDsList) > 0 {
-			summary["EKU OIDs"] = strings.Join(extOIDsList, ", ")
-		}
-		if len(ipAddressList) > 0 {
-			ipStrings := make([]string, len(ipAddressList))
-			for i, ip := range ipAddressList {
-				ipStrings[i] = ip.String()
-			}
-			summary["IP Addresses"] = strings.Join(ipStrings, ", ")
-		}
-		SummaryTable(summary)
+	}
 
-		if !im.ConfirmGeneration() {
-			fmt.Println("Certificate generation cancelled.")
-			os.Exit(0)
-		}
-	} else {
-		// Non-interactive mode (original behavior)
-		if *cn == "" {
-			fmt.Fprintf(os.Stderr, "Error: Common Name (--cn) is required\n")
-			os.Exit(1)
-		}
-
-		var dnsNamesList []string
-		if *dnsNames != "" {
-			dnsNamesList = strings.Split(*dnsNames, ",")
-			for i, name := range dnsNamesList {
-				dnsNamesList[i] = strings.TrimSpace(name)
-			}
-		}
-
-		var ipAddrsList []net.IP
-		if *ipAddrs != "" {
-			for _, addr := range strings.Split(*ipAddrs, ",") {
-				ip := net.ParseIP(strings.TrimSpace(addr))
-				if ip != nil {
-					ipAddrsList = append(ipAddrsList, ip)
-				}
-			}
-		}
-
-		var extOIDsList []string
-		if *extKeyUsageOIDs != "" {
-			extOIDsList = strings.Split(*extKeyUsageOIDs, ",")
-			for i, oid := range extOIDsList {
-				extOIDsList[i] = strings.TrimSpace(oid)
-			}
-		}
-
-		config = &cert.CertificateConfig{
-			CommonName:           *cn,
-			Country:              *country,
-			Organization:         *org,
-			OrganizationalUnit:   *orgUnit,
-			Locality:             *locality,
-			Province:             *province,
-			KeyType:              cert.KeyType(*keyType),
-			CertType:             cert.CertificateType(*certType),
-			Validity:             *validityDays,
-			DNSNames:             dnsNamesList,
-			IPAddresses:          ipAddrsList,
-			ExtendedKeyUsageOIDs: extOIDsList,
-		}
-
-		if *caCertFile != "" && *caKeyFile != "" {
-			caCertPEM, err := os.ReadFile(*caCertFile)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error reading CA certificate: %v\n", err)
-				os.Exit(1)
-			}
-
-			caKeyPEM, err := os.ReadFile(*caKeyFile)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error reading CA key: %v\n", err)
-				os.Exit(1)
-			}
-
-			caCert, err = encoding.DecodeCertificateFromPEM(caCertPEM)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error parsing CA certificate: %v\n", err)
-				os.Exit(1)
-			}
-
-			caPrivateKey, err = encoding.DecodePrivateKeyFromPEM(caKeyPEM)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error parsing CA key: %v\n", err)
-				os.Exit(1)
-			}
-		}
-
-		certOut = *certOutput
-		keyOut = *keyOutput
+	config := &cert.CertificateConfig{
+		CommonName:           *cn,
+		Country:              *country,
+		Organization:         *org,
+		OrganizationalUnit:   *orgUnit,
+		Locality:             *locality,
+		Province:             *province,
+		KeyType:              cert.KeyType(*keyType),
+		CertType:             cert.CertificateType(*certType),
+		Validity:             *validityDays,
+		DNSNames:             dnsNamesList,
+		IPAddresses:          ipAddrsList,
+		ExtendedKeyUsageOIDs: extOIDsList,
 	}
 
 	var certificate *x509.Certificate
@@ -410,74 +282,139 @@ func GenerateCert(args []string) {
 	var err error
 
 	if caCert != nil && caPrivateKey != nil {
-		caConfig := &cert.CertificateConfig{CommonName: caCert.Subject.CommonName}
-		certificate, privateKey, err = cert.GenerateCASignedCertificate(config, caConfig, caPrivateKey, caCert)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error generating certificate: %v\n", err)
-			os.Exit(1)
-		}
+		certificate, privateKey, err = cert.GenerateCASignedCertificate(config, config, caPrivateKey, caCert)
 	} else {
 		certificate, privateKey, err = cert.GenerateSelfSignedCertificate(config)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error generating certificate: %v\n", err)
-			os.Exit(1)
-		}
+	}
+
+	if err != nil {
+		return fmt.Errorf("error generating certificate: %w", err)
 	}
 
 	certPEM, err := encoding.EncodeCertificateToPEM(certificate)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding certificate: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error encoding certificate: %w", err)
 	}
 
 	keyPEM, err := encoding.EncodePrivateKeyToPEM(privateKey)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding private key: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error encoding private key: %w", err)
 	}
 
-	if err := os.WriteFile(certOut, certPEM, 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing certificate file: %v\n", err)
-		os.Exit(1)
+	if err := os.WriteFile(*certOutput, certPEM, 0644); err != nil {
+		return fmt.Errorf("error writing certificate file: %w", err)
 	}
 
-	if err := os.WriteFile(keyOut, keyPEM, 0600); err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing key file: %v\n", err)
-		os.Exit(1)
+	if err := os.WriteFile(*keyOutput, keyPEM, 0600); err != nil {
+		return fmt.Errorf("error writing key file: %w", err)
 	}
 
 	fmt.Printf("Certificate generated successfully!\n")
-	fmt.Printf("Certificate: %s\n", certOut)
-	fmt.Printf("Private Key: %s\n", keyOut)
+	fmt.Printf("Certificate: %s\n", *certOutput)
+	fmt.Printf("Private Key: %s\n", *keyOutput)
+	if caCert != nil {
+		fmt.Printf("Signed by CA\n")
+	}
 	fmt.Printf("Serial Number: %s\n", certificate.SerialNumber)
 	fmt.Printf("Valid From: %s\n", certificate.NotBefore)
 	fmt.Printf("Valid Until: %s\n", certificate.NotAfter)
-	if len(certificate.DNSNames) > 0 {
-		fmt.Printf("DNS Names: %s\n", strings.Join(certificate.DNSNames, ", "))
+	fmt.Printf("DNS Names: %s\n", strings.Join(config.DNSNames, ", "))
+
+	return nil
+}
+
+// GenerateCertFromFileCmd generates certificates from a config file and returns an error
+func GenerateCertFromFileCmd(configPath string) error {
+	// Load configuration from file
+	certConfigs, err := config.LoadConfigFromFile(configPath)
+	if err != nil {
+		return fmt.Errorf("error loading configuration: %w", err)
+	}
+
+	successCount := 0
+	failureCount := 0
+
+	fmt.Printf("Generating from configuration file...\n\n")
+
+	for i, certCfg := range certConfigs {
+		fmt.Printf("═══════════════════════════════════════════════════════════\n")
+
+		if certCfg.IsCSR {
+			fmt.Printf("CSR %d: %s\n", i+1, certCfg.CommonName)
+		} else {
+			if certCfg.IsCA {
+				fmt.Printf("CA Certificate %d: %s\n", i+1, certCfg.CommonName)
+			} else {
+				fmt.Printf("Certificate %d: %s\n", i+1, certCfg.CommonName)
+			}
+		}
+		fmt.Printf("═══════════════════════════════════════════════════════════\n")
+
+		if certCfg.IsCSR {
+			// Generate CSR
+			if err := generateCSRFromConfig(&certCfg); err != nil {
+				fmt.Fprintf(os.Stderr, "Error generating CSR: %v\n", err)
+				failureCount++
+				continue
+			}
+		} else {
+			// Generate certificate
+			if err := generateCertFromConfig(&certCfg); err != nil {
+				fmt.Fprintf(os.Stderr, "Error generating certificate: %v\n", err)
+				failureCount++
+				continue
+			}
+		}
+
+		successCount++
+	}
+
+	fmt.Printf("\n═══════════════════════════════════════════════════════════\n")
+	fmt.Printf("Summary: %d successful, %d failed\n", successCount, failureCount)
+
+	if failureCount > 0 {
+		return fmt.Errorf("failed to generate %d certificates/CSRs", failureCount)
+	}
+
+	return nil
+}
+
+// GenerateCert generates a certificate (wrapper that calls GenerateCertCmd and handles exit)
+func GenerateCert(args []string) {
+	if err := GenerateCertCmd(args); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 }
 
 // ViewCert views certificate details
-func ViewCert(args []string) {
-	cmd := flag.NewFlagSet("cert view", flag.ExitOnError)
+// ViewCertCmd views certificate details and returns an error instead of exiting
+func ViewCertCmd(args []string) error {
+	cmd := flag.NewFlagSet("cert view", flag.ContinueOnError)
 	certFile := cmd.String("cert", "", "Certificate file (required)")
 
 	if err := cmd.Parse(args); err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error parsing flags: %w", err)
 	}
 
 	if *certFile == "" {
-		fmt.Fprintf(os.Stderr, "Error: Certificate file (--cert) is required\n")
-		os.Exit(1)
+		return fmt.Errorf("certificate file (--cert) is required")
 	}
 
-	ViewCertificateDetails(*certFile)
+	return ViewCertificateDetailsCmd(*certFile)
 }
 
-// GenerateCSR generates a Certificate Signing Request
-func GenerateCSR(args []string) {
-	cmd := flag.NewFlagSet("csr generate", flag.ExitOnError)
+// ViewCert views certificate details (wrapper that calls ViewCertCmd and handles exit)
+func ViewCert(args []string) {
+	if err := ViewCertCmd(args); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+// GenerateCSRCmd generates a Certificate Signing Request and returns an error instead of exiting
+func GenerateCSRCmd(args []string) error {
+	cmd := flag.NewFlagSet("csr generate", flag.ContinueOnError)
 	cn := cmd.String("cn", "", "Common Name (required)")
 	country := cmd.String("country", "US", "Country")
 	org := cmd.String("org", "", "Organization")
@@ -489,103 +426,16 @@ func GenerateCSR(args []string) {
 	nonInteractive := cmd.Bool("non-interactive", false, "Enable non-interactive mode (requires --cn)")
 
 	if err := cmd.Parse(args); err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error parsing flags: %w", err)
 	}
 
 	// Handle file-based configuration
 	if *configFile != "" {
-		GenerateCSRFromFile(*configFile)
-		return
+		return GenerateCSRFromFileCmd(*configFile)
 	}
 
-	// Use interactive mode by default if no CN provided and not explicitly non-interactive
-	useInteractive := !*nonInteractive && *cn == ""
-
-	if useInteractive {
-		// Interactive mode
-		im := NewInteractiveMode()
-		fmt.Println("\n╔════════════════════════════════════════════════════════════╗")
-		fmt.Println("║        CSR GENERATION - INTERACTIVE MODE                   ║")
-		fmt.Println("╚════════════════════════════════════════════════════════════╝")
-
-		// Get subject information
-		subject := im.PromptSubjectInfo()
-		if subject["commonName"] == "" {
-			fmt.Fprintf(os.Stderr, "Error: Common Name is required\n")
-			os.Exit(1)
-		}
-
-		// Get key type
-		keyTypeStr := im.PromptKeyType()
-
-		// Get DNS names (SANs)
-		dnsNamesList := im.PromptDNSNames()
-
-		// Get output files
-		csrOut := im.PromptFileOutput("cert.csr")
-		keyOut := im.PromptFileOutput("cert.key")
-
-		// Create config
-		config := &cert.CSRConfig{
-			CommonName:   subject["commonName"],
-			Country:      subject["country"],
-			Organization: subject["organization"],
-			KeyType:      cert.KeyType(keyTypeStr),
-			DNSNames:     dnsNamesList,
-		}
-
-		// Display summary
-		summary := map[string]interface{}{
-			"Common Name":  config.CommonName,
-			"Organization": config.Organization,
-			"Key Type":     string(config.KeyType),
-			"DNS Names":    strings.Join(dnsNamesList, ", "),
-		}
-		SummaryTable(summary)
-
-		if !im.ConfirmGeneration() {
-			fmt.Println("CSR generation cancelled.")
-			os.Exit(0)
-		}
-
-		csr, privateKey, err := cert.GenerateCSR(config)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error generating CSR: %v\n", err)
-			os.Exit(1)
-		}
-
-		csrPEM, err := encoding.EncodeCSRToPEM(csr)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error encoding CSR: %v\n", err)
-			os.Exit(1)
-		}
-
-		keyPEM, err := encoding.EncodePrivateKeyToPEM(privateKey)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error encoding key: %v\n", err)
-			os.Exit(1)
-		}
-
-		if err := os.WriteFile(csrOut, csrPEM, 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing CSR file: %v\n", err)
-			os.Exit(1)
-		}
-
-		if err := os.WriteFile(keyOut, keyPEM, 0600); err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing key file: %v\n", err)
-			os.Exit(1)
-		}
-
-		fmt.Printf("CSR generated successfully!\n")
-		fmt.Printf("CSR: %s\n", csrOut)
-		fmt.Printf("Private Key: %s\n", keyOut)
-		return
-	}
-
-	if *cn == "" {
-		fmt.Fprintf(os.Stderr, "Error: Common Name (--cn) is required for non-interactive mode\n")
-		os.Exit(1)
+	if *cn == "" && !(!*nonInteractive && *cn == "") {
+		return fmt.Errorf("common Name (--cn) is required for non-interactive mode")
 	}
 
 	var dnsNamesList []string
@@ -606,49 +456,90 @@ func GenerateCSR(args []string) {
 
 	csr, privateKey, err := cert.GenerateCSR(config)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error generating CSR: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error generating CSR: %w", err)
 	}
 
 	csrPEM, err := encoding.EncodeCSRToPEM(csr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding CSR: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error encoding CSR: %w", err)
 	}
 
 	keyPEM, err := encoding.EncodePrivateKeyToPEM(privateKey)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding key: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error encoding key: %w", err)
 	}
 
 	if err := os.WriteFile(*csrOutput, csrPEM, 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing CSR file: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error writing CSR file: %w", err)
 	}
 
 	if err := os.WriteFile(*keyOutput, keyPEM, 0600); err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing key file: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error writing key file: %w", err)
 	}
 
 	fmt.Printf("CSR generated successfully!\n")
 	fmt.Printf("CSR: %s\n", *csrOutput)
 	fmt.Printf("Private Key: %s\n", *keyOutput)
+
+	return nil
 }
 
-// ViewCertificateDetails displays certificate information
-func ViewCertificateDetails(certFile string) {
+// GenerateCSRFromFileCmd generates CSRs from a config file and returns an error
+func GenerateCSRFromFileCmd(configPath string) error {
+	// Load configuration from file
+	certConfigs, err := config.LoadConfigFromFile(configPath)
+	if err != nil {
+		return fmt.Errorf("error loading configuration: %w", err)
+	}
+
+	successCount := 0
+	failureCount := 0
+
+	fmt.Printf("Generating from configuration file...\n\n")
+
+	for i, certCfg := range certConfigs {
+		if certCfg.IsCSR {
+			fmt.Printf("═══════════════════════════════════════════════════════════\n")
+			fmt.Printf("CSR %d: %s\n", i+1, certCfg.CommonName)
+			fmt.Printf("═══════════════════════════════════════════════════════════\n")
+
+			if err := generateCSRFromConfig(&certCfg); err != nil {
+				fmt.Fprintf(os.Stderr, "Error generating CSR: %v\n", err)
+				failureCount++
+				continue
+			}
+			successCount++
+		}
+	}
+
+	fmt.Printf("\n═══════════════════════════════════════════════════════════\n")
+	fmt.Printf("Summary: %d successful, %d failed\n", successCount, failureCount)
+
+	if failureCount > 0 {
+		return fmt.Errorf("failed to generate %d CSRs", failureCount)
+	}
+
+	return nil
+}
+
+// GenerateCSR generates a Certificate Signing Request (wrapper that calls GenerateCSRCmd and handles exit)
+func GenerateCSR(args []string) {
+	if err := GenerateCSRCmd(args); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+// ViewCertificateDetailsCmd displays certificate information and returns an error instead of exiting
+func ViewCertificateDetailsCmd(certFile string) error {
 	certPEM, err := os.ReadFile(certFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading certificate file: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error reading certificate file: %w", err)
 	}
 
 	certificate, err := encoding.DecodeCertificateFromPEM(certPEM)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing certificate: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error parsing certificate: %w", err)
 	}
 
 	fmt.Println("Certificate Details:")
@@ -669,24 +560,41 @@ func ViewCertificateDetails(certFile string) {
 	if len(certificate.IPAddresses) > 0 {
 		fmt.Printf("IP Addresses: %v\n", certificate.IPAddresses)
 	}
+
+	return nil
+}
+
+// ViewCertificateDetails displays certificate information (wrapper that calls ViewCertificateDetailsCmd and handles exit)
+func ViewCertificateDetails(certFile string) {
+	if err := ViewCertificateDetailsCmd(certFile); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 // ViewCA views CA certificate details
-func ViewCA(args []string) {
-	cmd := flag.NewFlagSet("ca view", flag.ExitOnError)
+// ViewCACmd views CA details and returns an error instead of exiting
+func ViewCACmd(args []string) error {
+	cmd := flag.NewFlagSet("ca view", flag.ContinueOnError)
 	certFile := cmd.String("cert", "", "CA certificate file (required)")
 
 	if err := cmd.Parse(args); err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error parsing flags: %w", err)
 	}
 
 	if *certFile == "" {
-		fmt.Fprintf(os.Stderr, "Error: CA certificate file (--cert) is required\n")
-		os.Exit(1)
+		return fmt.Errorf("CA certificate file (--cert) is required")
 	}
 
-	ViewCertificateDetails(*certFile)
+	return ViewCertificateDetailsCmd(*certFile)
+}
+
+// ViewCA views CA details (wrapper that calls ViewCACmd and handles exit)
+func ViewCA(args []string) {
+	if err := ViewCACmd(args); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 // GenerateCertFromFile generates certificates and CSRs from a configuration file
