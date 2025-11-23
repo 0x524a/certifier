@@ -1,0 +1,37 @@
+name: Greet New Contributors
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  greet:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Greet new contributors
+        uses: actions/github-script@4dc6199c7b1a012772edbd06daecab0f50c9053c
+        with:
+          script: |
+            const author = context.payload.pull_request.user.login;
+            const prNumber = context.issue.number;
+            
+            // Get list of existing contributors
+            const { data: commits } = await github.rest.repos.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            
+            const existingContributors = new Set(commits.map(c => c.author?.login).filter(Boolean));
+            
+            if (!existingContributors.has(author)) {
+              github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                event: 'COMMENT',
+                body: `Welcome to Certifier, @${author}! 👋\n\nThank you for your first contribution! We're excited to review your changes. Please make sure to:\n\n- ✅ Follow the coding guidelines from [CONTRIBUTING.md](.github/CONTRIBUTING.md)\n- ✅ Include tests for any new functionality\n- ✅ Update documentation as needed\n- ✅ Ensure all CI checks pass\n\nFeel free to ask questions if you need help!`
+              });
+            }

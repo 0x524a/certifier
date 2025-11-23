@@ -1,0 +1,47 @@
+name: Label Issues
+
+on:
+  issues:
+    types: [opened, reopened]
+  pull_request:
+    types: [opened, reopened]
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign labels based on content
+        uses: actions/github-script@4dc6199c7b1a012772edbd06daecab0f50c9053c
+        with:
+          script: |
+            const body = context.payload.issue?.body || context.payload.pull_request?.body || '';
+            const title = context.payload.issue?.title || context.payload.pull_request?.title || '';
+            const labels = [];
+            
+            // Auto-label based on content
+            if (body.includes('panic') || body.includes('fatal') || body.includes('crash')) {
+              labels.push('bug-critical');
+            }
+            if (body.includes('performance') || title.includes('perf')) {
+              labels.push('performance');
+            }
+            if (body.includes('documentation') || title.includes('doc')) {
+              labels.push('documentation');
+            }
+            if (body.includes('test') || title.includes('test')) {
+              labels.push('testing');
+            }
+            
+            if (labels.length > 0) {
+              github.rest.issues.addLabels({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: labels
+              });
+            }
