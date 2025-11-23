@@ -463,3 +463,81 @@ func TestCRLWithMultipleRevocations(t *testing.T) {
 		t.Errorf("Expected 10 revoked certificates, got %d", len(crl.RevokedCertificateEntries))
 	}
 }
+
+func TestSimpleSignerSignWithPSS(t *testing.T) {
+	// Test signing with RSA-PSS options
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+
+	signer := &simpleSigner{pk: privateKey}
+
+	// Test signing with PSS options
+	data := []byte("test data for PSS")
+	hash := crypto.SHA256
+	hashFunc := hash.HashFunc()
+	h := hashFunc.New()
+	h.Write(data)
+	digest := h.Sum(nil)
+
+	pssOpts := &rsa.PSSOptions{
+		SaltLength: rsa.PSSSaltLengthEqualsHash,
+		Hash:       hash,
+	}
+
+	signature, err := signer.Sign(rand.Reader, digest, pssOpts)
+
+	if err != nil {
+		t.Errorf("Sign with PSS returned error: %v", err)
+	}
+
+	if len(signature) == 0 {
+		t.Errorf("Expected non-empty signature with PSS")
+	}
+}
+
+func TestSimpleSignerSignUnsupportedKeyType(t *testing.T) {
+	// Test with an unsupported key type (not RSA)
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+
+	// Create a mock unsupported key type
+	type unsupportedKey struct {
+		key *rsa.PrivateKey
+	}
+
+	signer := &simpleSigner{pk: unsupportedKey{key: privateKey}}
+
+	// Test signing with unsupported key
+	data := []byte("test data")
+	hash := crypto.SHA256
+	hashFunc := hash.HashFunc()
+	h := hashFunc.New()
+	h.Write(data)
+	digest := h.Sum(nil)
+
+	_, err = signer.Sign(rand.Reader, digest, hash)
+
+	if err == nil {
+		t.Errorf("Expected error for unsupported key type")
+	}
+}
+
+func TestSimpleSignerPublicWithPublicKeyMethod(t *testing.T) {
+	// Test Public() method with a key that has Public() method
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+
+	// Create a signer with RSA key that has Public() method
+	signer := &simpleSigner{pk: privateKey}
+	pubKey := signer.Public()
+
+	if pubKey == nil {
+		t.Errorf("Expected non-nil public key from RSA key")
+	}
+}
