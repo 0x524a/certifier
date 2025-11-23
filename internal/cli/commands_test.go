@@ -681,3 +681,368 @@ func TestGenerateCSRWithSubjectFields(t *testing.T) {
 		t.Errorf("Expected Country=US, got %s", csr.Subject.Country[0])
 	}
 }
+
+// TestGenerateCertFromFile tests batch certificate generation from YAML file
+func TestGenerateCertFromFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "certs.yaml")
+
+	yamlContent := `certificates:
+  - commonName: "server1.example.com"
+    organization: "Test Corp"
+    country: "US"
+    validity: 365
+    keyType: "rsa2048"
+    dnsNames:
+      - "server1.example.com"
+      - "www1.example.com"
+    certificateOutputFile: "server1.crt"
+    privateKeyOutputFile: "server1.key"
+  - commonName: "server2.example.com"
+    organization: "Test Corp"
+    country: "US"
+    validity: 365
+    keyType: "rsa2048"
+    certificateOutputFile: "server2.crt"
+    privateKeyOutputFile: "server2.key"
+`
+
+	err := os.WriteFile(configFile, []byte(yamlContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create config file: %v", err)
+	}
+
+	// Change to temp directory so certificates are created there
+	oldCwd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldCwd)
+
+	// Run batch generation
+	output := captureOutput(func() {
+		GenerateCertFromFile(configFile)
+	})
+
+	// Verify output mentions successful generation
+	if !strings.Contains(output, "succeeded") {
+		t.Errorf("Expected success message in output: %s", output)
+	}
+
+	// Verify certificate files were created
+	if _, err := os.Stat("server1.crt"); err != nil {
+		t.Errorf("server1.crt not created: %v", err)
+	}
+
+	if _, err := os.Stat("server2.crt"); err != nil {
+		t.Errorf("server2.crt not created: %v", err)
+	}
+}
+
+// TestGenerateCSRFromFile tests batch CSR generation from YAML file
+func TestGenerateCSRFromFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "csrs.yaml")
+
+	yamlContent := `certificates:
+  - commonName: "web.example.com"
+    organization: "Test Corp"
+    country: "US"
+    keyType: "rsa2048"
+    dnsNames:
+      - "web.example.com"
+      - "www.example.com"
+    isCSR: true
+    csrOutputFile: "web.csr"
+    privateKeyOutputFile: "web.key"
+  - commonName: "client@example.com"
+    organization: "Test Corp"
+    country: "US"
+    keyType: "rsa2048"
+    emailAddresses:
+      - "client@example.com"
+    isCSR: true
+    csrOutputFile: "client.csr"
+    privateKeyOutputFile: "client.key"
+`
+
+	err := os.WriteFile(configFile, []byte(yamlContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create config file: %v", err)
+	}
+
+	// Change to temp directory so CSRs are created there
+	oldCwd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldCwd)
+
+	// Run batch CSR generation
+	output := captureOutput(func() {
+		GenerateCSRFromFile(configFile)
+	})
+
+	// Verify output mentions successful generation
+	if !strings.Contains(output, "succeeded") {
+		t.Errorf("Expected success message in output: %s", output)
+	}
+
+	// Verify CSR files were created
+	if _, err := os.Stat("web.csr"); err != nil {
+		t.Errorf("web.csr not created: %v", err)
+	}
+
+	if _, err := os.Stat("client.csr"); err != nil {
+		t.Errorf("client.csr not created: %v", err)
+	}
+}
+
+// TestGenerateCertFromFile_WithCA tests batch generation of CA certificates
+func TestGenerateCertFromFile_WithCA(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "ca-certs.yaml")
+
+	yamlContent := `certificates:
+  - commonName: "Root CA"
+    organization: "Test Corp"
+    country: "US"
+    validity: 3650
+    keyType: "rsa4096"
+    isCA: true
+    maxPathLength: 1
+    certificateOutputFile: "root-ca.crt"
+    privateKeyOutputFile: "root-ca.key"
+  - commonName: "Intermediate CA"
+    organization: "Test Corp"
+    country: "US"
+    validity: 1825
+    keyType: "rsa4096"
+    isCA: true
+    maxPathLength: 0
+    certificateOutputFile: "int-ca.crt"
+    privateKeyOutputFile: "int-ca.key"
+`
+
+	err := os.WriteFile(configFile, []byte(yamlContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create config file: %v", err)
+	}
+
+	// Change to temp directory
+	oldCwd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldCwd)
+
+	// Run batch generation
+	GenerateCertFromFile(configFile)
+
+	// Verify CA certificates were created
+	if _, err := os.Stat("root-ca.crt"); err != nil {
+		t.Errorf("root-ca.crt not created: %v", err)
+	}
+
+	if _, err := os.Stat("int-ca.crt"); err != nil {
+		t.Errorf("int-ca.crt not created: %v", err)
+	}
+
+	// Verify they are actually CAs
+	certPEM, _ := os.ReadFile("root-ca.crt")
+	rootCA, _ := encoding.DecodeCertificateFromPEM(certPEM)
+	if !rootCA.IsCA {
+		t.Error("root-ca.crt should be a CA certificate")
+	}
+
+	certPEM, _ = os.ReadFile("int-ca.crt")
+	intCA, _ := encoding.DecodeCertificateFromPEM(certPEM)
+	if !intCA.IsCA {
+		t.Error("int-ca.crt should be a CA certificate")
+	}
+}
+
+// TestGenerateCertFromFile_WithCustomOIDs tests batch generation with custom EKU OIDs
+func TestGenerateCertFromFile_WithCustomOIDs(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "oid-certs.yaml")
+
+	yamlContent := `certificates:
+  - commonName: "Module Signer"
+    organization: "Test Corp"
+    country: "US"
+    validity: 365
+    keyType: "rsa4096"
+    extendedKeyUsageOIDs:
+      - "1.3.6.1.4.1.2312.16.1.2"
+    certificateOutputFile: "signer.crt"
+    privateKeyOutputFile: "signer.key"
+`
+
+	err := os.WriteFile(configFile, []byte(yamlContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create config file: %v", err)
+	}
+
+	// Change to temp directory
+	oldCwd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldCwd)
+
+	// Run batch generation
+	GenerateCertFromFile(configFile)
+
+	// Verify certificate was created
+	if _, err := os.Stat("signer.crt"); err != nil {
+		t.Errorf("signer.crt not created: %v", err)
+	}
+}
+
+// TestGenerateCertFromFile_MixedCertAndCSR tests batch generation with mixed cert and CSR types
+func TestGenerateCertFromFile_MixedCertAndCSR(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "mixed.yaml")
+
+	yamlContent := `certificates:
+  - commonName: "server.example.com"
+    organization: "Test Corp"
+    country: "US"
+    certificateOutputFile: "server.crt"
+    privateKeyOutputFile: "server.key"
+  - commonName: "client@example.com"
+    organization: "Test Corp"
+    country: "US"
+    isCSR: true
+    csrOutputFile: "client.csr"
+    privateKeyOutputFile: "client.key"
+`
+
+	err := os.WriteFile(configFile, []byte(yamlContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create config file: %v", err)
+	}
+
+	// Change to temp directory
+	oldCwd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldCwd)
+
+	// Run batch generation
+	output := captureOutput(func() {
+		GenerateCertFromFile(configFile)
+	})
+
+	// Verify only cert (not CSR) was generated
+	if !strings.Contains(output, "Certificate 1") {
+		t.Errorf("Expected certificate generation output: %s", output)
+	}
+
+	if _, err := os.Stat("server.crt"); err != nil {
+		t.Errorf("server.crt not created: %v", err)
+	}
+}
+
+// TestGenerateCSRFromFile_WithDifferentKeyTypes tests CSR batch with various key types
+func TestGenerateCSRFromFile_WithDifferentKeyTypes(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "key-types.yaml")
+
+	yamlContent := `certificates:
+  - commonName: "rsa-csr.example.com"
+    organization: "Test Corp"
+    country: "US"
+    keyType: "rsa2048"
+    isCSR: true
+    csrOutputFile: "rsa.csr"
+    privateKeyOutputFile: "rsa.key"
+  - commonName: "ecdsa-csr.example.com"
+    organization: "Test Corp"
+    country: "US"
+    keyType: "ecdsa-p256"
+    isCSR: true
+    csrOutputFile: "ecdsa.csr"
+    privateKeyOutputFile: "ecdsa.key"
+`
+
+	err := os.WriteFile(configFile, []byte(yamlContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create config file: %v", err)
+	}
+
+	// Change to temp directory
+	oldCwd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldCwd)
+
+	// Run batch CSR generation
+	GenerateCSRFromFile(configFile)
+
+	// Verify CSRs were created
+	if _, err := os.Stat("rsa.csr"); err != nil {
+		t.Errorf("rsa.csr not created: %v", err)
+	}
+
+	if _, err := os.Stat("ecdsa.csr"); err != nil {
+		t.Errorf("ecdsa.csr not created: %v", err)
+	}
+}
+
+// TestGenerateCertFromFile_WithAllFields tests batch generation using all configuration fields
+func TestGenerateCertFromFile_WithAllFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "comprehensive.yaml")
+
+	yamlContent := `certificates:
+  - commonName: "comprehensive.example.com"
+    organization: "Test Corp"
+    organizationalUnit: "Engineering"
+    country: "US"
+    locality: "San Francisco"
+    province: "CA"
+    streetAddress: "123 Main St"
+    postalCode: "94105"
+    validity: 365
+    keyType: "rsa4096"
+    certificateType: "server"
+    dnsNames:
+      - "comprehensive.example.com"
+      - "www.comprehensive.example.com"
+    ipAddresses:
+      - "192.168.1.1"
+      - "10.0.0.1"
+    emailAddresses:
+      - "admin@example.com"
+    extendedKeyUsageOIDs:
+      - "1.3.6.1.5.5.7.3.1"
+    certificateOutputFile: "comprehensive.crt"
+    privateKeyOutputFile: "comprehensive.key"
+`
+
+	err := os.WriteFile(configFile, []byte(yamlContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create config file: %v", err)
+	}
+
+	// Change to temp directory
+	oldCwd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldCwd)
+
+	// Run batch generation
+	GenerateCertFromFile(configFile)
+
+	// Verify certificate was created
+	certPEM, err := os.ReadFile("comprehensive.crt")
+	if err != nil {
+		t.Errorf("comprehensive.crt not created: %v", err)
+	}
+
+	// Decode and verify certificate details
+	certificate, err := encoding.DecodeCertificateFromPEM(certPEM)
+	if err != nil {
+		t.Fatalf("Failed to decode certificate: %v", err)
+	}
+
+	if certificate.Subject.CommonName != "comprehensive.example.com" {
+		t.Errorf("Expected CN=comprehensive.example.com, got %s", certificate.Subject.CommonName)
+	}
+
+	if len(certificate.DNSNames) != 2 {
+		t.Errorf("Expected 2 DNS names, got %d", len(certificate.DNSNames))
+	}
+}
+
