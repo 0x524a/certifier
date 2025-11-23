@@ -11,9 +11,6 @@ import (
 // TestNewMenuMode tests the creation of a new menu mode
 func TestNewMenuMode(t *testing.T) {
 	m := NewMenuMode()
-	if m == nil {
-		t.Errorf("NewMenuMode returned nil")
-	}
 	if m.reader == nil {
 		t.Errorf("MenuMode reader is nil")
 	}
@@ -30,11 +27,11 @@ func TestDisplayMainMenuScreen(t *testing.T) {
 
 	m.displayMainMenuScreen()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 
 	buf := new(strings.Builder)
-	io.Copy(buf, r)
+	_, _ = io.Copy(buf, r)
 	output := buf.String()
 
 	// Check menu content
@@ -101,7 +98,7 @@ func TestPromptMainMenu(t *testing.T) {
 
 			result := m.promptMainMenu()
 
-			w.Close()
+			_ = w.Close()
 			os.Stdout = old
 
 			if result != tt.expected {
@@ -115,7 +112,7 @@ func TestPromptMainMenu(t *testing.T) {
 func TestHandleCAMenuGenerate(t *testing.T) {
 	// This tests only the input handling, not the generation itself
 	input := "1\nTest CA\nTestOrg\n\nUS\n1\n365\n\nFalse\nn\n3\n"
-	m := &MenuMode{
+	_ = &MenuMode{
 		reader: bufio.NewReader(strings.NewReader(input)),
 	}
 
@@ -128,17 +125,12 @@ func TestHandleCAMenuGenerate(t *testing.T) {
 	// We're just testing that it doesn't panic or crash
 	// The actual generation is tested in commands_test.go
 	defer func() {
-		w.Close()
+		_ = w.Close()
 		os.Stdout = old
 		if r := recover(); r != nil {
 			t.Errorf("HandleCAMenu panicked: %v", r)
 		}
 	}()
-
-	// Ensure m is used for the test
-	if m == nil {
-		t.Errorf("MenuMode should not be nil")
-	}
 
 	// Note: We can't fully test this without mocking input
 	// This is a partial test to ensure the method exists and is callable
@@ -158,11 +150,11 @@ func TestPromptAndViewCertFile(t *testing.T) {
 
 	m.promptAndViewCertFile()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 
 	buf := new(strings.Builder)
-	io.Copy(buf, r)
+	_, _ = io.Copy(buf, r)
 	output := buf.String()
 
 	if !strings.Contains(output, "No file path provided") {
@@ -184,11 +176,11 @@ func TestPromptAndViewCAFile(t *testing.T) {
 
 	m.promptAndViewCAFile()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 
 	buf := new(strings.Builder)
-	io.Copy(buf, r)
+	_, _ = io.Copy(buf, r)
 	output := buf.String()
 
 	if !strings.Contains(output, "No file path provided") {
@@ -221,14 +213,14 @@ func TestMenuScreens(t *testing.T) {
 
 			tt.testFunc(m)
 
-			w.Close()
-			os.Stdout = old
+		_ = w.Close()
+		os.Stdout = old
 
-			buf := new(strings.Builder)
-			io.Copy(buf, r)
-			output := buf.String()
+		buf := new(strings.Builder)
+		_, _ = io.Copy(buf, r)
+		output := buf.String()
 
-			if !strings.Contains(output, tt.contains) {
+		if !strings.Contains(output, tt.contains) {
 				t.Errorf("Menu screen missing: %q", tt.contains)
 			}
 		})
@@ -249,7 +241,7 @@ func TestMenuModeInputTrimming(t *testing.T) {
 
 	result := m.promptMainMenu()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 
 	if result != "1" {
@@ -261,13 +253,11 @@ func TestMenuModeInputTrimming(t *testing.T) {
 func TestMenuOptionValidation(t *testing.T) {
 	// Test that invalid options are handled gracefully
 	input := "invalid\n3\n" // First invalid, then back to main menu, then we exit
-	m := &MenuMode{
+	_ = &MenuMode{
 		reader: bufio.NewReader(strings.NewReader(input)),
 	}
 
 	// This test just ensures these methods are callable
 	// Full integration testing would require mocking os.Exit
-	if m == nil {
-		t.Errorf("MenuMode should not be nil")
-	}
 }
+

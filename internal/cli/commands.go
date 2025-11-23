@@ -207,7 +207,7 @@ func GenerateCertCmd(args []string) error {
 		return GenerateCertFromFileCmd(*configFile)
 	}
 
-	if *cn == "" && !(!*nonInteractive && *cn == "") {
+	if *cn == "" && (*nonInteractive || *cn != "") {
 		return fmt.Errorf("common Name (--cn) is required for non-interactive mode")
 	}
 
@@ -434,7 +434,7 @@ func GenerateCSRCmd(args []string) error {
 		return GenerateCSRFromFileCmd(*configFile)
 	}
 
-	if *cn == "" && !(!*nonInteractive && *cn == "") {
+	if *cn == "" && (*nonInteractive || *cn != "") {
 		return fmt.Errorf("common Name (--cn) is required for non-interactive mode")
 	}
 

@@ -13,9 +13,6 @@ import (
 // TestNewInteractiveMode tests the creation of a new interactive mode
 func TestNewInteractiveMode(t *testing.T) {
 	im := NewInteractiveMode()
-	if im == nil {
-		t.Errorf("NewInteractiveMode returned nil")
-	}
 	if im.reader == nil {
 		t.Errorf("InteractiveMode reader is nil")
 	}
@@ -229,17 +226,17 @@ func TestPromptStringSlice(t *testing.T) {
 
 			// Capture stdout to avoid cluttering test output
 			old := os.Stdout
-			r, w, _ := os.Pipe()
-			os.Stdout = w
+		r, w, _ := os.Pipe()
+		os.Stdout = w
 
-			result := im.PromptStringSlice("Test prompt")
+		result := im.PromptStringSlice("Test prompt")
 
-			w.Close()
-			os.Stdout = old
-			io.ReadAll(r)
+		_ = w.Close()
+		os.Stdout = old
+		_, _ = io.ReadAll(r)
 
-			if len(result) != len(tt.expected) {
-				t.Errorf("PromptStringSlice length = %d, expected %d", len(result), len(tt.expected))
+		if len(result) != len(tt.expected) {
+			t.Errorf("PromptStringSlice length = %d, expected %d", len(result), len(tt.expected))
 				return
 			}
 
@@ -268,9 +265,9 @@ func TestPromptDNSNames(t *testing.T) {
 
 	result := im.PromptDNSNames()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
-	io.ReadAll(r)
+	_, _ = io.ReadAll(r)
 
 	if len(result) != len(expected) {
 		t.Errorf("PromptDNSNames length = %d, expected %d", len(result), len(expected))
@@ -324,14 +321,14 @@ func TestPromptIPAddresses(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stdout = w
 
-			result := im.PromptIPAddresses()
+		result := im.PromptIPAddresses()
 
-			w.Close()
-			os.Stdout = old
-			io.ReadAll(r)
+		_ = w.Close()
+		os.Stdout = old
+		_, _ = io.ReadAll(r)
 
-			if len(result) != len(tt.expected) {
-				t.Errorf("PromptIPAddresses length = %d, expected %d", len(result), len(tt.expected))
+		if len(result) != len(tt.expected) {
+			t.Errorf("PromptIPAddresses length = %d, expected %d", len(result), len(tt.expected))
 				return
 			}
 
@@ -359,9 +356,9 @@ func TestPromptIPAddressesInvalid(t *testing.T) {
 
 	result := im.PromptIPAddresses()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
-	io.ReadAll(r)
+	_, _ = io.ReadAll(r)
 
 	// Should only have the valid IP
 	if len(result) != 1 {
@@ -390,9 +387,9 @@ func TestPromptEmailAddresses(t *testing.T) {
 
 	result := im.PromptEmailAddresses()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
-	io.ReadAll(r)
+	_, _ = io.ReadAll(r)
 
 	if len(result) != len(expected) {
 		t.Errorf("PromptEmailAddresses length = %d, expected %d", len(result), len(expected))
@@ -421,9 +418,9 @@ func TestPromptSubjectInfo(t *testing.T) {
 
 	result := im.PromptSubjectInfo()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
-	io.ReadAll(r)
+	_, _ = io.ReadAll(r)
 
 	if result["commonName"] != "example.com" {
 		t.Errorf("commonName = %q, expected 'example.com'", result["commonName"])
@@ -487,9 +484,9 @@ func TestPromptCertificateType(t *testing.T) {
 
 			result := im.PromptCertificateType()
 
-			w.Close()
+			_ = w.Close()
 			os.Stdout = old
-			io.ReadAll(r)
+			_, _ = io.ReadAll(r)
 
 			if result != tt.expected {
 				t.Errorf("PromptCertificateType() = %q, expected %q", result, tt.expected)
@@ -555,9 +552,9 @@ func TestPromptKeyType(t *testing.T) {
 
 			result := im.PromptKeyType()
 
-			w.Close()
+			_ = w.Close()
 			os.Stdout = old
-			io.ReadAll(r)
+			_, _ = io.ReadAll(r)
 
 			if result != tt.expected {
 				t.Errorf("PromptKeyType() = %q, expected %q", result, tt.expected)
@@ -603,9 +600,9 @@ func TestPromptValidity(t *testing.T) {
 
 			result := im.PromptValidity()
 
-			w.Close()
+			_ = w.Close()
 			os.Stdout = old
-			io.ReadAll(r)
+			_, _ = io.ReadAll(r)
 
 			if result != tt.expected {
 				t.Errorf("PromptValidity() = %d, expected %d", result, tt.expected)
@@ -630,9 +627,9 @@ func TestPromptExtendedKeyUsageOIDs(t *testing.T) {
 
 	result := im.PromptExtendedKeyUsageOIDs()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
-	io.ReadAll(r)
+	_, _ = io.ReadAll(r)
 
 	if len(result) != len(expected) {
 		t.Errorf("PromptExtendedKeyUsageOIDs length = %d, expected %d", len(result), len(expected))
@@ -662,9 +659,9 @@ func TestPromptFileOutput(t *testing.T) {
 
 	result := im.PromptFileOutput("default.crt")
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
-	io.ReadAll(r)
+	_, _ = io.ReadAll(r)
 
 	if result != expected {
 		t.Errorf("PromptFileOutput() = %q, expected %q", result, expected)
@@ -703,9 +700,9 @@ func TestConfirmGeneration(t *testing.T) {
 
 			result := im.ConfirmGeneration()
 
-			w.Close()
+			_ = w.Close()
 			os.Stdout = old
-			io.ReadAll(r)
+			_, _ = io.ReadAll(r)
 
 			if result != tt.expected {
 				t.Errorf("ConfirmGeneration() = %v, expected %v", result, tt.expected)
@@ -731,11 +728,11 @@ func TestSummaryTable(t *testing.T) {
 
 	SummaryTable(details)
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 
 	output := new(bytes.Buffer)
-	io.Copy(output, r)
+	_, _ = io.Copy(output, r)
 	result := output.String()
 
 	// Check that output contains expected content
