@@ -26,10 +26,7 @@ jobs:
           go test -v -coverprofile=coverage.out ./...
           go tool cover -func=coverage.out
 
-      - name: Download SonarScanner
-        uses: SonarSource/sonarcloud-github-action@master
-
-      - name: Run SonarCloud Analysis
+      - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
