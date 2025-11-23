@@ -27,10 +27,10 @@ jobs:
           - goos: windows
             goarch: amd64
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c75462b469e6e1a4413fcf3562
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
 
       - name: Set up Go
-        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
         with:
           go-version: '1.22'
           cache: true
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c75462b469e6e1a4413fcf3562
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
 
       - name: Download artifacts
         uses: actions/download-artifact@f093f21ca4cfa7c75ccbbc2be54da76a0c7e1f05
@@ -102,12 +102,12 @@ jobs:
     name: Publish to Go Package Registry
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c75462b469e6e1a4413fcf3562
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
         with:
           go-version: '1.22'
 
