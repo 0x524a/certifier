@@ -95,14 +95,14 @@ func ParseOCSPRequest(reqBytes []byte) (map[string]interface{}, error) {
 
 // OCSPCertificateStatus represents the status of a certificate in OCSP
 type OCSPCertificateStatus struct {
-	Serial              *big.Int
-	Status              string // "good", "revoked", or "unknown"
-	ThisUpdate          time.Time
-	NextUpdate          time.Time
-	RevocationTime      time.Time
-	RevocationReason    string
-	ResponderURL        string
-	ProducedAt          time.Time
+	Serial           *big.Int
+	Status           string // "good", "revoked", or "unknown"
+	ThisUpdate       time.Time
+	NextUpdate       time.Time
+	RevocationTime   time.Time
+	RevocationReason string
+	ResponderURL     string
+	ProducedAt       time.Time
 }
 
 // CheckCertificateStatus checks the status of a certificate via OCSP
@@ -119,11 +119,11 @@ func CheckCertificateStatus(
 
 	// This is a placeholder - full OCSP client implementation would be more complex
 	status := &OCSPCertificateStatus{
-		Serial:        cert.SerialNumber,
-		Status:        "unknown",
-		ResponderURL:  ocspURL,
-		ThisUpdate:    time.Now(),
-		NextUpdate:    time.Now().Add(7 * 24 * time.Hour),
+		Serial:       cert.SerialNumber,
+		Status:       "unknown",
+		ResponderURL: ocspURL,
+		ThisUpdate:   time.Now(),
+		NextUpdate:   time.Now().Add(7 * 24 * time.Hour),
 	}
 
 	return status, nil

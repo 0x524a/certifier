@@ -2,7 +2,6 @@ package encoding
 
 import (
 	"crypto"
-	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -88,7 +87,7 @@ func EncodeToPKCS12(
 	}
 
 	// Encode to PKCS12
-	pfxData, err := pkcs12.Encode(rand.Reader, privateKey, certificate, nil, password)
+	pfxData, err := pkcs12.Modern.Encode(privateKey, certificate, nil, password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode to PKCS12: %w", err)
 	}

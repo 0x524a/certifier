@@ -7,12 +7,12 @@ import (
 
 func TestGenerateSelfSignedCertificate(t *testing.T) {
 	config := &CertificateConfig{
-		CommonName:    "test.example.com",
-		Country:       "US",
-		Organization:  "Test Org",
-		KeyType:       KeyTypeRSA2048,
-		Validity:      365,
-		IsCA:          false,
+		CommonName:   "test.example.com",
+		Country:      "US",
+		Organization: "Test Org",
+		KeyType:      KeyTypeRSA2048,
+		Validity:     365,
+		IsCA:         false,
 	}
 
 	cert, key, err := GenerateSelfSignedCertificate(config)
@@ -56,11 +56,11 @@ func TestGenerateCASignedCertificate(t *testing.T) {
 
 	// Generate certificate signed by CA
 	certConfig := &CertificateConfig{
-		CommonName:    "example.com",
-		Country:       "US",
-		Organization:  "Test Org",
-		KeyType:       KeyTypeRSA2048,
-		Validity:      365,
+		CommonName:   "example.com",
+		Country:      "US",
+		Organization: "Test Org",
+		KeyType:      KeyTypeRSA2048,
+		Validity:     365,
 	}
 
 	cert, key, err := GenerateCASignedCertificate(certConfig, caConfig, caKey, caCert)
@@ -166,8 +166,8 @@ func TestCertificateExpiration(t *testing.T) {
 	}
 
 	expectedExpiry := now.Add(24 * time.Hour)
-	if !cert.NotAfter.After(expectedExpiry.Add(-10 * time.Minute)) ||
-		!cert.NotAfter.Before(expectedExpiry.Add(10 * time.Minute)) {
+	if !cert.NotAfter.After(expectedExpiry.Add(-10*time.Minute)) ||
+		!cert.NotAfter.Before(expectedExpiry.Add(10*time.Minute)) {
 		t.Errorf("Certificate expiry is not as expected. Got %v", cert.NotAfter)
 	}
 }
