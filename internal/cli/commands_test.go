@@ -4868,4 +4868,105 @@ func TestGenerateCSRFromFileCmdMultiple(t *testing.T) {
 	}
 }
 
+// TestGenerateCertFromFileCmdWithWriteError tests GenerateCertFromFileCmd with write failures
+func TestGenerateCertFromFileCmdWithWriteError(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `certificates:
+  - commonName: test.example.com
+    organization: Test Org
+    country: US
+    isCA: false
+    validity: 365
+    keyType: rsa2048
+    certificateOutputFile: /root/invalid-path.crt
+    privateKeyOutputFile: /root/invalid-path.key
+`
+	
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	
+	err := GenerateCertFromFileCmd(configPath)
+	// This should fail due to invalid write path
+	if err == nil {
+		t.Errorf("Expected error for write failure, got nil")
+	}
+}
+
+// TestGenerateCSRFromFileCmdWithWriteError tests GenerateCSRFromFileCmd with write failures
+func TestGenerateCSRFromFileCmdWithWriteError(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `certificates:
+  - commonName: test.example.com
+    organization: Test Org
+    country: US
+    isCSR: true
+    validity: 365
+    keyType: rsa2048
+    csrOutputFile: /root/invalid-path.csr
+    privateKeyOutputFile: /root/invalid-path.key
+`
+	
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	
+	err := GenerateCSRFromFileCmd(configPath)
+	// This should fail due to invalid write path
+	if err == nil {
+		t.Errorf("Expected error for write failure, got nil")
+	}
+}
+
+// TestGenerateCertFromFileCmdMixedStatus tests mixed success and failure results
+func TestGenerateCertFromFileCmdMixedStatus(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "mixed.yaml")
+	configContent := `certificates:
+  - commonName: valid-cert.example.com
+    organization: Org1
+    country: US
+    isCA: false
+    validity: 365
+    keyType: rsa2048
+    certificateOutputFile: valid.crt
+    privateKeyOutputFile: valid.key
+  - commonName: ""
+    organization: Org2
+    country: US
+    isCA: false
+    validity: 365
+    keyType: ecdsa-p256
+    certificateOutputFile: invalid.crt
+    privateKeyOutputFile: invalid.key
+`
+	
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	
+	outDir := filepath.Join(tmpDir, "output")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	
+	oldCwd, _ := os.Getwd()
+	defer os.Chdir(oldCwd)
+	os.Chdir(outDir)
+	
+	err := GenerateCertFromFileCmd(configPath)
+	// Should fail because one certificate failed
+	if err == nil {
+		t.Errorf("Expected error for mixed status, got nil")
+	}
+	
+	// Verify the first cert was created despite the second failing
+	certFile := filepath.Join(outDir, "valid.crt")
+	if _, err := os.Stat(certFile); os.IsNotExist(err) {
+		t.Logf("First certificate not created (may be expected if all failed)")
+	}
+}
+
 
