@@ -225,8 +225,7 @@ func generateCA(caCmd *flag.FlagSet, args []string) {
 }
 
 func viewCA(caCmd *flag.FlagSet, args []string) {
-	// TODO: Implement view CA
-	fmt.Println("View CA - not yet implemented")
+	cli.ViewCA(args)
 }
 
 func generateCert(args []string) {

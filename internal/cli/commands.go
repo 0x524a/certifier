@@ -337,3 +337,21 @@ func ViewCertificateDetails(certFile string) {
 		fmt.Printf("IP Addresses: %v\n", certificate.IPAddresses)
 	}
 }
+
+// ViewCA views CA certificate details
+func ViewCA(args []string) {
+	cmd := flag.NewFlagSet("ca view", flag.ExitOnError)
+	certFile := cmd.String("cert", "", "CA certificate file (required)")
+
+	if err := cmd.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+		os.Exit(1)
+	}
+
+	if *certFile == "" {
+		fmt.Fprintf(os.Stderr, "Error: CA certificate file (--cert) is required\n")
+		os.Exit(1)
+	}
+
+	ViewCertificateDetails(*certFile)
+}
