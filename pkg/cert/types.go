@@ -56,8 +56,8 @@ type CertificateConfig struct {
 	MaxPathLength int // -1 for unlimited
 
 	// Extensions
-	KeyUsage         x509.KeyUsage
-	ExtendedKeyUsage []x509.ExtKeyUsage
+	KeyUsage                x509.KeyUsage
+	ExtendedKeyUsage        []x509.ExtKeyUsage
 	BasicConstraintsValid   bool
 	CRLDistributionPoints   []string
 	OCSPServer              []string
@@ -91,8 +91,8 @@ type CSRConfig struct {
 
 // RevocationInfo holds information for certificate revocation
 type RevocationInfo struct {
-	Certificate     *x509.Certificate
-	RevocationTime  time.Time
+	Certificate      *x509.Certificate
+	RevocationTime   time.Time
 	RevocationReason int // CRL reason code
 }
 
@@ -137,19 +137,19 @@ type ValidationConfig struct {
 
 // ValidationResult holds the result of certificate validation
 type ValidationResult struct {
-	Valid                 bool
-	Errors                []string
-	Warnings              []string
-	ChainValid            bool
-	NotExpired            bool
-	HostnameValid         bool
-	PurposeValid          bool
-	CRLDistributionURL    string
-	OCSPURL               string
-	SignatureAlgorithm    string
-	PublicKeyAlgorithm    string
-	KeySize               int
-	ExpiresIn             time.Duration
-	ValidFrom             time.Time
-	ValidUntil            time.Time
+	Valid              bool
+	Errors             []string
+	Warnings           []string
+	ChainValid         bool
+	NotExpired         bool
+	HostnameValid      bool
+	PurposeValid       bool
+	CRLDistributionURL string
+	OCSPURL            string
+	SignatureAlgorithm string
+	PublicKeyAlgorithm string
+	KeySize            int
+	ExpiresIn          time.Duration
+	ValidFrom          time.Time
+	ValidUntil         time.Time
 }

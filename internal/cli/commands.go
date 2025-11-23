@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"strings"
@@ -38,16 +37,16 @@ func GenerateCA(args []string) {
 	}
 
 	config := &cert.CertificateConfig{
-		CommonName:    *cn,
-		Country:       *country,
-		Organization:  *org,
+		CommonName:         *cn,
+		Country:            *country,
+		Organization:       *org,
 		OrganizationalUnit: *orgUnit,
-		Locality:      *locality,
-		Province:      *province,
-		KeyType:       cert.KeyType(*keyType),
-		Validity:      *validityDays,
-		IsCA:          true,
-		MaxPathLength: -1,
+		Locality:           *locality,
+		Province:           *province,
+		KeyType:            cert.KeyType(*keyType),
+		Validity:           *validityDays,
+		IsCA:               true,
+		MaxPathLength:      -1,
 	}
 
 	certificate, privateKey, err := cert.GenerateSelfSignedCertificate(config)
@@ -68,12 +67,12 @@ func GenerateCA(args []string) {
 		os.Exit(1)
 	}
 
-	if err := ioutil.WriteFile(*certOutput, certPEM, 0644); err != nil {
+	if err := os.WriteFile(*certOutput, certPEM, 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing certificate file: %v\n", err)
 		os.Exit(1)
 	}
 
-	if err := ioutil.WriteFile(*keyOutput, keyPEM, 0600); err != nil {
+	if err := os.WriteFile(*keyOutput, keyPEM, 0600); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing key file: %v\n", err)
 		os.Exit(1)
 	}
@@ -133,16 +132,16 @@ func GenerateCert(args []string) {
 	}
 
 	config := &cert.CertificateConfig{
-		CommonName:    *cn,
-		Country:       *country,
-		Organization:  *org,
+		CommonName:         *cn,
+		Country:            *country,
+		Organization:       *org,
 		OrganizationalUnit: *orgUnit,
-		Locality:      *locality,
-		Province:      *province,
-		KeyType:       cert.KeyType(*keyType),
-		Validity:      *validityDays,
-		DNSNames:      dnsNamesList,
-		IPAddresses:   ipAddrsList,
+		Locality:           *locality,
+		Province:           *province,
+		KeyType:            cert.KeyType(*keyType),
+		Validity:           *validityDays,
+		DNSNames:           dnsNamesList,
+		IPAddresses:        ipAddrsList,
 	}
 
 	var certificate *x509.Certificate
@@ -150,13 +149,13 @@ func GenerateCert(args []string) {
 	var err error
 
 	if *caCertFile != "" && *caKeyFile != "" {
-		caCertPEM, err := ioutil.ReadFile(*caCertFile)
+		caCertPEM, err := os.ReadFile(*caCertFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error reading CA certificate: %v\n", err)
 			os.Exit(1)
 		}
 
-		caKeyPEM, err := ioutil.ReadFile(*caKeyFile)
+		caKeyPEM, err := os.ReadFile(*caKeyFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error reading CA key: %v\n", err)
 			os.Exit(1)
@@ -201,12 +200,12 @@ func GenerateCert(args []string) {
 		os.Exit(1)
 	}
 
-	if err := ioutil.WriteFile(*certOutput, certPEM, 0644); err != nil {
+	if err := os.WriteFile(*certOutput, certPEM, 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing certificate file: %v\n", err)
 		os.Exit(1)
 	}
 
-	if err := ioutil.WriteFile(*keyOutput, keyPEM, 0600); err != nil {
+	if err := os.WriteFile(*keyOutput, keyPEM, 0600); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing key file: %v\n", err)
 		os.Exit(1)
 	}
@@ -290,12 +289,12 @@ func GenerateCSR(args []string) {
 		os.Exit(1)
 	}
 
-	if err := ioutil.WriteFile(*csrOutput, csrPEM, 0644); err != nil {
+	if err := os.WriteFile(*csrOutput, csrPEM, 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing CSR file: %v\n", err)
 		os.Exit(1)
 	}
 
-	if err := ioutil.WriteFile(*keyOutput, keyPEM, 0600); err != nil {
+	if err := os.WriteFile(*keyOutput, keyPEM, 0600); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing key file: %v\n", err)
 		os.Exit(1)
 	}
@@ -307,7 +306,7 @@ func GenerateCSR(args []string) {
 
 // ViewCertificateDetails displays certificate information
 func ViewCertificateDetails(certFile string) {
-	certPEM, err := ioutil.ReadFile(certFile)
+	certPEM, err := os.ReadFile(certFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading certificate file: %v\n", err)
 		os.Exit(1)

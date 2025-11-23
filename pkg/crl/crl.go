@@ -14,8 +14,8 @@ import (
 
 // RevokedCertificate represents a revoked certificate entry
 type RevokedCertificate struct {
-	SerialNumber   *big.Int
-	RevocationTime time.Time
+	SerialNumber     *big.Int
+	RevocationTime   time.Time
 	RevocationReason int // CRL reason code
 }
 
@@ -74,9 +74,9 @@ func GenerateCRL(config *CRLConfig) ([]byte, error) {
 	}
 
 	crlTemplate := &x509.RevocationList{
-		Issuer:            config.CACertificate.Subject,
-		ThisUpdate:        now,
-		NextUpdate:        now.Add(validity),
+		Issuer:              config.CACertificate.Subject,
+		ThisUpdate:          now,
+		NextUpdate:          now.Add(validity),
 		RevokedCertificates: revokedCerts,
 	}
 
@@ -108,7 +108,7 @@ func CheckRevocation(cert *x509.Certificate, crl *x509.RevocationList) bool {
 		return false
 	}
 
-	for _, revoked := range crl.RevokedCertificates {
+	for _, revoked := range crl.RevokedCertificateEntries {
 		if revoked.SerialNumber.Cmp(cert.SerialNumber) == 0 {
 			return true
 		}
@@ -117,40 +117,18 @@ func CheckRevocation(cert *x509.Certificate, crl *x509.RevocationList) bool {
 	return false
 }
 
-// encodeReasonCode encodes a CRL reason code
-func encodeReasonCode(reason int) []byte {
-	// CRL reason codes (per RFC 5280)
-	// 0 = unspecified
-	// 1 = keyCompromise
-	// 2 = cACompromise
-	// 3 = affiliationChanged
-	// 4 = superseded
-	// 5 = cessationOfOperation
-	// 6 = certificateHold
-	// 8 = removeFromCRL
-	// 9 = privilegeWithdrawn
-	// 10 = aACompromise
-
-	if reason < 0 || reason > 10 {
-		reason = 0 // unspecified
-	}
-
-	// Simple DER encoding of integer
-	return []byte{0x02, 0x01, byte(reason)}
-}
-
 // RevocationReason constants
 const (
-	ReasonUnspecified         = 0
-	ReasonKeyCompromise       = 1
-	ReasonCACompromise        = 2
-	ReasonAffiliationChanged  = 3
-	ReasonSuperseded          = 4
+	ReasonUnspecified          = 0
+	ReasonKeyCompromise        = 1
+	ReasonCACompromise         = 2
+	ReasonAffiliationChanged   = 3
+	ReasonSuperseded           = 4
 	ReasonCessationOfOperation = 5
-	ReasonCertificateHold     = 6
-	ReasonRemoveFromCRL       = 8
-	ReasonPrivilegeWithdrawn  = 9
-	ReasonAACompromise        = 10
+	ReasonCertificateHold      = 6
+	ReasonRemoveFromCRL        = 8
+	ReasonPrivilegeWithdrawn   = 9
+	ReasonAACompromise         = 10
 )
 
 // simpleSigner is a wrapper to make a private key compatible with crypto.Signer
