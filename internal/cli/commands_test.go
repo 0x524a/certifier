@@ -4515,3 +4515,170 @@ func TestGenerateCSRFromFileWrapperErrors(t *testing.T) {
 	}
 }
 
+// TestGenerateCAWithNonInteractiveValidArgs tests GenerateCACmd with valid args
+func TestGenerateCAWithNonInteractiveValidArgs(t *testing.T) {
+	tmpDir := t.TempDir()
+	certOutput := filepath.Join(tmpDir, "ca.crt")
+	keyOutput := filepath.Join(tmpDir, "ca.key")
+
+	args := []string{
+		"-cn", "Test CA",
+		"-country", "US",
+		"-org", "Test Org",
+		"-output", certOutput,
+		"-key-output", keyOutput,
+		"-non-interactive",
+	}
+
+	output := captureOutput(func() {
+		err := GenerateCACmd(args)
+		if err != nil {
+			t.Errorf("GenerateCACmd failed: %v", err)
+		}
+	})
+
+	// Verify files were created
+	if _, err := os.Stat(certOutput); err != nil {
+		t.Errorf("Certificate file not created: %v", err)
+	}
+	if _, err := os.Stat(keyOutput); err != nil {
+		t.Errorf("Key file not created: %v", err)
+	}
+
+	// Verify output contains success message
+	if !strings.Contains(output, "generated successfully") {
+		t.Errorf("Output missing success message")
+	}
+}
+
+// TestGenerateCertWithNonInteractiveValidArgs tests GenerateCertCmd with valid args
+func TestGenerateCertWithNonInteractiveValidArgs(t *testing.T) {
+	tmpDir := t.TempDir()
+	certOutput := filepath.Join(tmpDir, "cert.crt")
+	keyOutput := filepath.Join(tmpDir, "cert.key")
+
+	args := []string{
+		"-cn", "Test Cert",
+		"-country", "US",
+		"-org", "Test Org",
+		"-output", certOutput,
+		"-key-output", keyOutput,
+		"-non-interactive",
+	}
+
+	output := captureOutput(func() {
+		err := GenerateCertCmd(args)
+		if err != nil {
+			t.Errorf("GenerateCertCmd failed: %v", err)
+		}
+	})
+
+	// Verify files were created
+	if _, err := os.Stat(certOutput); err != nil {
+		t.Errorf("Certificate file not created: %v", err)
+	}
+	if _, err := os.Stat(keyOutput); err != nil {
+		t.Errorf("Key file not created: %v", err)
+	}
+
+	// Verify output contains success message
+	if !strings.Contains(output, "generated successfully") {
+		t.Errorf("Output missing success message")
+	}
+}
+
+// TestGenerateCSRWithNonInteractiveValidArgs tests GenerateCSRCmd with valid args
+func TestGenerateCSRWithNonInteractiveValidArgs(t *testing.T) {
+	tmpDir := t.TempDir()
+	csrOutput := filepath.Join(tmpDir, "test.csr")
+	keyOutput := filepath.Join(tmpDir, "test.key")
+
+	args := []string{
+		"-cn", "Test CSR",
+		"-country", "US",
+		"-org", "Test Org",
+		"-output", csrOutput,
+		"-key-output", keyOutput,
+		"-non-interactive",
+	}
+
+	output := captureOutput(func() {
+		err := GenerateCSRCmd(args)
+		if err != nil {
+			t.Errorf("GenerateCSRCmd failed: %v", err)
+		}
+	})
+
+	// Verify files were created
+	if _, err := os.Stat(csrOutput); err != nil {
+		t.Errorf("CSR file not created: %v", err)
+	}
+	if _, err := os.Stat(keyOutput); err != nil {
+		t.Errorf("Key file not created: %v", err)
+	}
+
+	// Verify output contains success message
+	if !strings.Contains(output, "generated successfully") {
+		t.Errorf("Output missing success message")
+	}
+}
+
+// TestViewCertCmdValidFile tests ViewCertCmd with valid certificate file
+func TestViewCertCmdValidFile(t *testing.T) {
+	certPath, _ := createTestCertificate(t)
+
+	args := []string{
+		"-cert", certPath,
+	}
+
+	output := captureOutput(func() {
+		err := ViewCertCmd(args)
+		if err != nil {
+			t.Errorf("ViewCertCmd failed: %v", err)
+		}
+	})
+
+	// Verify certificate details were shown
+	if !strings.Contains(output, "Certificate Details:") {
+		t.Errorf("ViewCertCmd output missing certificate details header")
+	}
+}
+
+// TestViewCACmdOutput tests ViewCACmd with valid certificate file for output verification
+func TestViewCACmdOutput(t *testing.T) {
+	certPath, _ := createTestCertificate(t)
+
+	args := []string{
+		"-cert", certPath,
+	}
+
+	output := captureOutput(func() {
+		err := ViewCACmd(args)
+		if err != nil {
+			t.Errorf("ViewCACmd failed: %v", err)
+		}
+	})
+
+	// Verify certificate details were shown
+	if !strings.Contains(output, "Certificate Details:") {
+		t.Errorf("ViewCACmd output missing certificate details header")
+	}
+}
+
+// TestViewCertificateDetailsCmdValidFile tests ViewCertificateDetailsCmd with valid file
+func TestViewCertificateDetailsCmdValidFile(t *testing.T) {
+	certPath, _ := createTestCertificate(t)
+
+	output := captureOutput(func() {
+		err := ViewCertificateDetailsCmd(certPath)
+		if err != nil {
+			t.Errorf("ViewCertificateDetailsCmd failed: %v", err)
+		}
+	})
+
+	// Verify certificate details were shown
+	if !strings.Contains(output, "Certificate Details:") {
+		t.Errorf("ViewCertificateDetailsCmd output missing header")
+	}
+}
+
