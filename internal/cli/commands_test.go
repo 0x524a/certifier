@@ -1064,19 +1064,19 @@ func TestGenerateCertFromFile_WithAllFields(t *testing.T) {
 func TestGenerateCAInteractiveMode(t *testing.T) {
 	tmpDir := t.TempDir()
 	_ = tmpDir // Use tmpDir in test
-	
+
 	// Change to temp directory
 	oldCwd, _ := os.Getwd()
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 	defer func() { _ = os.Chdir(oldCwd) }()
-	
+
 	// We can't directly test interactive mode due to stdin, but we can test the command with flags
 	output := captureOutput(func() {
 		GenerateCA([]string{"-cn", "Interactive Test CA", "-org", "TestOrg", "-non-interactive"})
 	})
-	
+
 	if !strings.Contains(output, "CA Certificate generated successfully") {
 		t.Errorf("Expected success message, got: %s", output)
 	}
@@ -1087,7 +1087,7 @@ func TestGenerateCertWithIPAddresses(t *testing.T) {
 	tmpDir := t.TempDir()
 	certFile := filepath.Join(tmpDir, "cert-ips.crt")
 	keyFile := filepath.Join(tmpDir, "cert-ips.key")
-	
+
 	output := captureOutput(func() {
 		GenerateCert([]string{
 			"-cn", "192.168.1.1",
@@ -1096,11 +1096,11 @@ func TestGenerateCertWithIPAddresses(t *testing.T) {
 			"-key-output", keyFile,
 		})
 	})
-	
+
 	if !strings.Contains(output, "Certificate generated successfully") {
 		t.Errorf("Expected success message, got: %s", output)
 	}
-	
+
 	if _, err := os.Stat(certFile); err != nil {
 		t.Errorf("Certificate file not created: %v", err)
 	}
@@ -1111,7 +1111,7 @@ func TestGenerateCertWithSubjectFields(t *testing.T) {
 	tmpDir := t.TempDir()
 	certFile := filepath.Join(tmpDir, "cert-subj.crt")
 	keyFile := filepath.Join(tmpDir, "cert-subj.key")
-	
+
 	output := captureOutput(func() {
 		GenerateCert([]string{
 			"-cn", "user.example.com",
@@ -1121,11 +1121,11 @@ func TestGenerateCertWithSubjectFields(t *testing.T) {
 			"-key-output", keyFile,
 		})
 	})
-	
+
 	if !strings.Contains(output, "Certificate generated successfully") {
 		t.Errorf("Expected success message, got: %s", output)
 	}
-	
+
 	if _, err := os.Stat(certFile); err != nil {
 		t.Errorf("Certificate file not created: %v", err)
 	}
@@ -1136,7 +1136,7 @@ func TestGenerateCSRWithIPAddresses(t *testing.T) {
 	tmpDir := t.TempDir()
 	csrFile := filepath.Join(tmpDir, "test-dns.csr")
 	keyFile := filepath.Join(tmpDir, "test-dns.key")
-	
+
 	output := captureOutput(func() {
 		GenerateCSR([]string{
 			"-cn", "api.example.com",
@@ -1145,7 +1145,7 @@ func TestGenerateCSRWithIPAddresses(t *testing.T) {
 			"-key-output", keyFile,
 		})
 	})
-	
+
 	if !strings.Contains(output, "CSR generated successfully") {
 		t.Errorf("Expected success message, got: %s", output)
 	}
@@ -1156,7 +1156,7 @@ func TestGenerateCSRWithSubjectFieldsNew(t *testing.T) {
 	tmpDir := t.TempDir()
 	csrFile := filepath.Join(tmpDir, "test-subj.csr")
 	keyFile := filepath.Join(tmpDir, "test-subj.key")
-	
+
 	output := captureOutput(func() {
 		GenerateCSR([]string{
 			"-cn", "user.example.com",
@@ -1166,7 +1166,7 @@ func TestGenerateCSRWithSubjectFieldsNew(t *testing.T) {
 			"-key-output", keyFile,
 		})
 	})
-	
+
 	if !strings.Contains(output, "CSR generated successfully") {
 		t.Errorf("Expected success message, got: %s", output)
 	}
@@ -1177,7 +1177,7 @@ func TestGenerateCAWithAllFields(t *testing.T) {
 	tmpDir := t.TempDir()
 	certFile := filepath.Join(tmpDir, "ca-full.crt")
 	keyFile := filepath.Join(tmpDir, "ca-full.key")
-	
+
 	output := captureOutput(func() {
 		GenerateCA([]string{
 			"-cn", "Full CA",
@@ -1192,22 +1192,22 @@ func TestGenerateCAWithAllFields(t *testing.T) {
 			"-non-interactive",
 		})
 	})
-	
+
 	if !strings.Contains(output, "CA Certificate generated successfully") {
 		t.Errorf("Expected success message, got: %s", output)
 	}
-	
+
 	// Verify the certificate has the correct subject fields
 	certPEM, err := os.ReadFile(certFile)
 	if err != nil {
 		t.Fatalf("Failed to read certificate: %v", err)
 	}
-	
+
 	certificate, err := encoding.DecodeCertificateFromPEM(certPEM)
 	if err != nil {
 		t.Fatalf("Failed to decode certificate: %v", err)
 	}
-	
+
 	if certificate == nil {
 		t.Fatalf("No certificate found in PEM")
 	}
@@ -1224,7 +1224,7 @@ func TestGenerateCertWithAllFields(t *testing.T) {
 	tmpDir := t.TempDir()
 	certFile := filepath.Join(tmpDir, "cert-full.crt")
 	keyFile := filepath.Join(tmpDir, "cert-full.key")
-	
+
 	output := captureOutput(func() {
 		GenerateCert([]string{
 			"-cn", "example.com",
@@ -1240,7 +1240,7 @@ func TestGenerateCertWithAllFields(t *testing.T) {
 			"-non-interactive",
 		})
 	})
-	
+
 	if !strings.Contains(output, "Certificate generated successfully") {
 		t.Errorf("Expected success message, got: %s", output)
 	}
@@ -1251,7 +1251,7 @@ func TestGenerateCSRWithAllFields(t *testing.T) {
 	tmpDir := t.TempDir()
 	csrFile := filepath.Join(tmpDir, "csr-full.csr")
 	keyFile := filepath.Join(tmpDir, "csr-full.key")
-	
+
 	output := captureOutput(func() {
 		GenerateCSR([]string{
 			"-cn", "example.com",
@@ -1263,7 +1263,7 @@ func TestGenerateCSRWithAllFields(t *testing.T) {
 			"-non-interactive",
 		})
 	})
-	
+
 	if !strings.Contains(output, "CSR generated successfully") {
 		t.Errorf("Expected success message, got: %s", output)
 	}
@@ -1272,13 +1272,13 @@ func TestGenerateCSRWithAllFields(t *testing.T) {
 // TestGenerateCertWithECDSAKeyTypes tests certificate generation with ECDSA key types
 func TestGenerateCertWithECDSAKeyTypes(t *testing.T) {
 	keyTypes := []string{"ecdsa-p256", "ecdsa-p384", "ecdsa-p521"}
-	
+
 	for _, kt := range keyTypes {
 		t.Run(kt, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			certFile := filepath.Join(tmpDir, "cert.crt")
 			keyFile := filepath.Join(tmpDir, "cert.key")
-			
+
 			output := captureOutput(func() {
 				GenerateCert([]string{
 					"-cn", "ecdsa-test.com",
@@ -1288,7 +1288,7 @@ func TestGenerateCertWithECDSAKeyTypes(t *testing.T) {
 					"-non-interactive",
 				})
 			})
-			
+
 			if !strings.Contains(output, "Certificate generated successfully") {
 				t.Errorf("Expected success message for %s, got: %s", kt, output)
 			}
@@ -1301,7 +1301,7 @@ func TestGenerateCSRWithEd25519(t *testing.T) {
 	tmpDir := t.TempDir()
 	csrFile := filepath.Join(tmpDir, "ed25519.csr")
 	keyFile := filepath.Join(tmpDir, "ed25519.key")
-	
+
 	output := captureOutput(func() {
 		GenerateCSR([]string{
 			"-cn", "ed25519-test.com",
@@ -1311,7 +1311,7 @@ func TestGenerateCSRWithEd25519(t *testing.T) {
 			"-non-interactive",
 		})
 	})
-	
+
 	if !strings.Contains(output, "CSR generated successfully") {
 		t.Errorf("Expected success message, got: %s", output)
 	}
@@ -1322,7 +1322,7 @@ func TestGenerateCertWithExtendedValidity(t *testing.T) {
 	tmpDir := t.TempDir()
 	certFile := filepath.Join(tmpDir, "extended.crt")
 	keyFile := filepath.Join(tmpDir, "extended.key")
-	
+
 	output := captureOutput(func() {
 		GenerateCert([]string{
 			"-cn", "extended.example.com",
@@ -1332,22 +1332,22 @@ func TestGenerateCertWithExtendedValidity(t *testing.T) {
 			"-non-interactive",
 		})
 	})
-	
+
 	if !strings.Contains(output, "Certificate generated successfully") {
 		t.Errorf("Expected success message, got: %s", output)
 	}
-	
+
 	// Verify validity
 	certPEM, err := os.ReadFile(certFile)
 	if err != nil {
 		t.Fatalf("Failed to read certificate: %v", err)
 	}
-	
+
 	cert, err := encoding.DecodeCertificateFromPEM(certPEM)
 	if err != nil {
 		t.Fatalf("Failed to decode certificate: %v", err)
 	}
-	
+
 	if cert == nil {
 		t.Fatalf("No certificate found")
 	}
@@ -1362,9 +1362,9 @@ func TestGenerateCertWithMultipleDNS(t *testing.T) {
 	tmpDir := t.TempDir()
 	certFile := filepath.Join(tmpDir, "multi-dns.crt")
 	keyFile := filepath.Join(tmpDir, "multi-dns.key")
-	
+
 	dnsNames := "example.com,www.example.com,api.example.com,*.example.com"
-	
+
 	output := captureOutput(func() {
 		GenerateCert([]string{
 			"-cn", "example.com",
@@ -1374,22 +1374,22 @@ func TestGenerateCertWithMultipleDNS(t *testing.T) {
 			"-non-interactive",
 		})
 	})
-	
+
 	if !strings.Contains(output, "Certificate generated successfully") {
 		t.Errorf("Expected success message, got: %s", output)
 	}
-	
+
 	// Verify DNS names in certificate
 	certPEM, err := os.ReadFile(certFile)
 	if err != nil {
 		t.Fatalf("Failed to read certificate: %v", err)
 	}
-	
+
 	cert, err := encoding.DecodeCertificateFromPEM(certPEM)
 	if err != nil {
 		t.Fatalf("Failed to decode certificate: %v", err)
 	}
-	
+
 	if cert == nil {
 		t.Fatalf("No certificate found")
 	}
@@ -1423,16 +1423,16 @@ func TestGenerateCACmd(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
-			
+
 			// Add output file to args
 			args := append(tt.args, "-output", filepath.Join(tmpDir, "ca.crt"), "-key-output", filepath.Join(tmpDir, "ca.key"))
-			
+
 			err := GenerateCACmd(args)
-			
+
 			if (err != nil) != tt.expectErr {
 				t.Errorf("GenerateCACmd() error = %v, expectErr = %v", err, tt.expectErr)
 			}
-			
+
 			if tt.checkFile {
 				if _, err := os.Stat(filepath.Join(tmpDir, "ca.crt")); err != nil {
 					t.Errorf("Certificate file not created: %v", err)
@@ -1503,16 +1503,16 @@ func TestGenerateCertCmd(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
-			
+
 			// Add output file to args
 			args := append(tt.args, "-output", filepath.Join(tmpDir, "cert.crt"), "-key-output", filepath.Join(tmpDir, "cert.key"))
-			
+
 			err := GenerateCertCmd(args)
-			
+
 			if (err != nil) != tt.expectErr {
 				t.Errorf("GenerateCertCmd() error = %v, expectErr = %v", err, tt.expectErr)
 			}
-			
+
 			if tt.checkFile {
 				if _, err := os.Stat(filepath.Join(tmpDir, "cert.crt")); err != nil {
 					t.Errorf("Certificate file not created: %v", err)
@@ -1545,7 +1545,7 @@ func TestGenerateCertCmd_ErrorHandling(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			args := append(tt.args, "-output", filepath.Join(tmpDir, "cert.crt"), "-key-output", filepath.Join(tmpDir, "cert.key"))
-			
+
 			err := GenerateCertCmd(args)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GenerateCertCmd() error = %v, wantErr %v", err, tt.wantErr)
@@ -1561,7 +1561,7 @@ func TestGenerateCertCmd_ErrorHandling(t *testing.T) {
 // TestGenerateCertCmd_WithCA tests generating a certificate signed by a CA
 func TestGenerateCertCmd_WithCA(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	// First, create a CA certificate
 	caArgs := []string{
 		"-cn", "Test CA",
@@ -1570,12 +1570,12 @@ func TestGenerateCertCmd_WithCA(t *testing.T) {
 		"-output", filepath.Join(tmpDir, "ca.crt"),
 		"-key-output", filepath.Join(tmpDir, "ca.key"),
 	}
-	
+
 	err := GenerateCACmd(caArgs)
 	if err != nil {
 		t.Fatalf("Failed to generate CA: %v", err)
 	}
-	
+
 	// Now generate a certificate signed by the CA
 	certArgs := []string{
 		"-cn", "Test Cert",
@@ -1586,12 +1586,12 @@ func TestGenerateCertCmd_WithCA(t *testing.T) {
 		"-output", filepath.Join(tmpDir, "cert.crt"),
 		"-key-output", filepath.Join(tmpDir, "cert.key"),
 	}
-	
+
 	err = GenerateCertCmd(certArgs)
 	if err != nil {
 		t.Errorf("GenerateCertCmd with CA failed: %v", err)
 	}
-	
+
 	// Verify the certificate was created
 	if _, err := os.Stat(filepath.Join(tmpDir, "cert.crt")); err != nil {
 		t.Errorf("Certificate file not created: %v", err)
@@ -1629,16 +1629,16 @@ func TestGenerateCSRCmd(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
-			
+
 			// Add output file to args
 			args := append(tt.args, "-output", filepath.Join(tmpDir, "cert.csr"), "-key-output", filepath.Join(tmpDir, "cert.key"))
-			
+
 			err := GenerateCSRCmd(args)
-			
+
 			if (err != nil) != tt.expectErr {
 				t.Errorf("GenerateCSRCmd() error = %v, expectErr = %v", err, tt.expectErr)
 			}
-			
+
 			if tt.checkFile {
 				if _, err := os.Stat(filepath.Join(tmpDir, "cert.csr")); err != nil {
 					t.Errorf("CSR file not created: %v", err)
@@ -1671,7 +1671,7 @@ func TestGenerateCSRCmd_ErrorHandling(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			args := append(tt.args, "-output", filepath.Join(tmpDir, "cert.csr"), "-key-output", filepath.Join(tmpDir, "cert.key"))
-			
+
 			err := GenerateCSRCmd(args)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GenerateCSRCmd() error = %v, wantErr %v", err, tt.wantErr)
@@ -1688,7 +1688,7 @@ func TestGenerateCSRCmd_ErrorHandling(t *testing.T) {
 func TestViewCertCmd(t *testing.T) {
 	// First create a test certificate
 	tmpDir := t.TempDir()
-	
+
 	certCfg := &cert.CertificateConfig{
 		CommonName:   "Test Cert",
 		Organization: "Test Org",
@@ -1703,7 +1703,9 @@ func TestViewCertCmd(t *testing.T) {
 
 	certFile := filepath.Join(tmpDir, "test.crt")
 	certPEM, _ := encoding.EncodeCertificateToPEM(testCert)
-	os.WriteFile(certFile, certPEM, 0644)
+	if err := os.WriteFile(certFile, certPEM, 0644); err != nil {
+		t.Fatalf("Failed to write certificate file: %v", err)
+	}
 
 	tests := []struct {
 		name      string
@@ -1741,7 +1743,7 @@ func TestViewCertCmd(t *testing.T) {
 func TestViewCACmd(t *testing.T) {
 	// First create a test CA certificate
 	tmpDir := t.TempDir()
-	
+
 	caCfg := &cert.CertificateConfig{
 		CommonName:    "Test CA",
 		Organization:  "Test Org",
@@ -1758,7 +1760,9 @@ func TestViewCACmd(t *testing.T) {
 
 	certFile := filepath.Join(tmpDir, "test-ca.crt")
 	certPEM, _ := encoding.EncodeCertificateToPEM(caCert)
-	os.WriteFile(certFile, certPEM, 0644)
+	if err := os.WriteFile(certFile, certPEM, 0644); err != nil {
+		t.Fatalf("Failed to write CA file: %v", err)
+	}
 
 	tests := []struct {
 		name      string
@@ -1795,7 +1799,7 @@ func TestViewCACmd(t *testing.T) {
 // TestViewCertificateDetailsCmd tests ViewCertificateDetailsCmd error handling
 func TestViewCertificateDetailsCmd(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	caCfg := &cert.CertificateConfig{
 		CommonName:   "Test Cert",
 		Organization: "Test Org",
@@ -1810,7 +1814,9 @@ func TestViewCertificateDetailsCmd(t *testing.T) {
 
 	certFile := filepath.Join(tmpDir, "test.crt")
 	certPEM, _ := encoding.EncodeCertificateToPEM(testCert)
-	os.WriteFile(certFile, certPEM, 0644)
+	if err := os.WriteFile(certFile, certPEM, 0644); err != nil {
+		t.Fatalf("Failed to write certificate file: %v", err)
+	}
 
 	tests := []struct {
 		name      string
@@ -1838,6 +1844,3 @@ func TestViewCertificateDetailsCmd(t *testing.T) {
 		})
 	}
 }
-
-
-
