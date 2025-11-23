@@ -4,7 +4,7 @@ Complete index of all documentation for the Certifier project with descriptions,
 
 ---
 
-## 📖 All Documents (7 files, 2,300+ lines)
+## 📖 All Documents (9 files, 3,500+ lines)
 
 ### 1️⃣ **SETUP_QUICK_REF.md** ⭐ START HERE
 - **Type**: Quick Reference
@@ -107,6 +107,37 @@ Complete index of all documentation for the Certifier project with descriptions,
   - Quick examples
   - License
 
+### 8️⃣ **BATCH_GENERATION.md** 📦 BATCH CERTIFICATES
+- **Type**: Feature Guide
+- **Size**: 18 KB | 650+ lines
+- **Read Time**: 25 minutes
+- **Purpose**: Generate multiple certificates with custom EKU OIDs
+- **Contains**:
+  - Extended Key Usage (EKU) overview
+  - Custom OID support (kernel module signing, firmware, etc.)
+  - Batch generation from YAML/JSON files
+  - Configuration file format reference
+  - Detailed usage examples
+  - Best practices and security considerations
+  - Common issues and troubleshooting
+- **Best For**: Bulk certificate generation, custom OID usage
+- **When to Read**: When you need to generate multiple certificates or use custom OIDs
+
+### 9️⃣ **QUICK_REFERENCE_OID.md** ⚡ QUICK CHEAT SHEET
+- **Type**: Quick Reference
+- **Size**: 6 KB | 250+ lines
+- **Read Time**: 5 minutes
+- **Purpose**: Fast reference for OID and batch generation
+- **Contains**:
+  - One-liner commands
+  - Common OID values table
+  - Configuration file templates (minimal and complete)
+  - Certificate type scenarios (kernel, firmware, mTLS, web)
+  - Verification commands
+  - Troubleshooting table
+- **Best For**: Quick lookup, copy-paste examples
+- **When to Read**: When you know what you want but need quick syntax
+
 ---
 
 ## 🎯 Reading Paths
@@ -126,6 +157,11 @@ Complete index of all documentation for the Certifier project with descriptions,
 1. **README.md** (5 min) - Overview
 2. **QUICKSTART.md** (15 min) - Usage examples
 
+### Path C2: I Want to Generate Certificates in Bulk (30 minutes)
+1. **QUICK_REFERENCE_OID.md** (5 min) - Quick overview
+2. **BATCH_GENERATION.md** (25 min) - Complete guide
+3. Review example files in `examples/` directory
+
 ### Path D: I'm a Project Lead/Manager (1 hour)
 1. **SETUP_GUIDE.md** (15 min) - Project structure
 2. **ROADMAP.md** (20 min) - Improvement plan
@@ -137,24 +173,28 @@ Read all documents in this order:
 1. SETUP_QUICK_REF.md
 2. README.md
 3. QUICKSTART.md
-4. GITHUB_SETUP.md
-5. SETUP_GUIDE.md
-6. ROADMAP.md
-7. CONTRIBUTING.md
+4. QUICK_REFERENCE_OID.md
+5. BATCH_GENERATION.md
+6. GITHUB_SETUP.md
+7. SETUP_GUIDE.md
+8. ROADMAP.md
+9. CONTRIBUTING.md
 
 ---
 
 ## 📋 Document Comparison Matrix
 
-| Document | Quick Ref | Detailed | Setup | Dev | User | PM |
-|----------|:---------:|:--------:|:-----:|:--:|:----:|:--:|
-| SETUP_QUICK_REF | ⭐⭐⭐⭐⭐ | • | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐ | ⭐⭐ |
-| GITHUB_SETUP | • | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | • | ⭐⭐⭐ |
-| SETUP_GUIDE | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐ |
-| ROADMAP | • | ⭐⭐⭐⭐ | • | ⭐⭐⭐⭐ | • | ⭐⭐⭐⭐⭐ |
-| CONTRIBUTING | • | ⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐ |
-| QUICKSTART | • | ⭐⭐⭐ | • | ⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐ |
-| README | ⭐⭐⭐ | • | ⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ |
+| Document | Quick Ref | Detailed | Setup | Dev | User | PM | OID/Batch |
+|----------|:---------:|:--------:|:-----:|:--:|:----:|:--:|:---------:|
+| SETUP_QUICK_REF | ⭐⭐⭐⭐⭐ | • | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐ | ⭐⭐ | • |
+| GITHUB_SETUP | • | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | • | ⭐⭐⭐ | • |
+| SETUP_GUIDE | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐ | • |
+| ROADMAP | • | ⭐⭐⭐⭐ | • | ⭐⭐⭐⭐ | • | ⭐⭐⭐⭐⭐ | • |
+| CONTRIBUTING | • | ⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐ | ⭐ |
+| QUICKSTART | • | ⭐⭐⭐ | • | ⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐ | ⭐⭐ |
+| README | ⭐⭐⭐ | • | ⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ | ⭐ |
+| BATCH_GENERATION | ⭐⭐ | ⭐⭐⭐⭐⭐ | • | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ |
+| QUICK_REFERENCE_OID | ⭐⭐⭐⭐⭐ | ⭐ | • | ⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ |
 
 ---
 
@@ -170,6 +210,15 @@ Read all documents in this order:
 
 **How to Use Certifier?**
 → **QUICKSTART.md** + **README.md**
+
+**How to Generate Batch Certificates?**
+→ **QUICK_REFERENCE_OID.md** (5 min quick start) or **BATCH_GENERATION.md** (comprehensive)
+
+**Custom EKU OID Support?**
+→ **BATCH_GENERATION.md** (EKU section) or **QUICK_REFERENCE_OID.md** (OID table)
+
+**Configuration File Format?**
+→ **BATCH_GENERATION.md** (Configuration File Format section)
 
 **Project Overview?**
 → **README.md** + **SETUP_GUIDE.md**
@@ -287,18 +336,19 @@ Read all documents in this order:
 
 ```
 Total Documentation:
-├── Lines of text: 2,300+
-├── Files: 7
-├── Total size: 58 KB
-├── Average doc: 330 lines
-└── Total read time: ~100 minutes
+├── Lines of text: 3,500+
+├── Files: 9
+├── Total size: 75 KB
+├── Average doc: 390 lines
+└── Total read time: ~150 minutes
 
 By Category:
-├── Setup & Configuration: 850 lines (37%)
-├── Development & Guidelines: 450 lines (20%)
-├── Usage Examples: 400 lines (17%)
-├── Improvements & Roadmap: 350 lines (15%)
-└── Project Overview: 250 lines (11%)
+├── Setup & Configuration: 950 lines (27%)
+├── Development & Guidelines: 450 lines (13%)
+├── Usage Examples: 650 lines (19%)
+├── Batch & OID Features: 900 lines (26%)
+├── Improvements & Roadmap: 350 lines (10%)
+└── Project Overview: 200 lines (5%)
 ```
 
 ---
@@ -328,6 +378,8 @@ By Category:
 - [ ] QUICKSTART.md has CLI examples
 - [ ] README.md lists all features
 - [ ] SETUP_GUIDE.md connects everything together
+- [ ] BATCH_GENERATION.md explains batch certificate generation
+- [ ] QUICK_REFERENCE_OID.md has one-liner commands for certificates with custom OIDs
 
 ---
 
@@ -356,19 +408,23 @@ By Category:
 | CONTRIBUTING.md | 2025-11-23 | @0x524a | ✅ Current |
 | QUICKSTART.md | 2025-11-23 | @0x524a | ✅ Current |
 | README.md | 2025-11-23 | @0x524a | ✅ Current |
+| BATCH_GENERATION.md | 2025-11-23 | @0x524a | ✅ New - Batch & OID Support |
+| QUICK_REFERENCE_OID.md | 2025-11-23 | @0x524a | ✅ New - Quick Reference |
 
 ---
 
 ## 🎉 You Have Everything You Need!
 
-**Total Documentation**: 2,300+ lines covering every aspect of the project
+**Total Documentation**: 3,500+ lines covering every aspect of the project including:
 
-**Ready to**:
 - ✅ Set up GitHub CI/CD
 - ✅ Improve code quality
 - ✅ Plan improvements
 - ✅ Contribute code
 - ✅ Use the tool
+- ✅ Generate certificates (single and batch)
+- ✅ Use custom Extended Key Usage OIDs
+- ✅ Automate certificate generation
 - ✅ Maintain the project
 
 **Next Step**: Pick your reading path above and start! 🚀

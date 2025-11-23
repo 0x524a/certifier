@@ -4,14 +4,22 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/0x524a/certifier/internal/cli"
 )
 
+// isFlag checks if a string is a command-line flag
+func isFlag(s string) bool {
+	return strings.HasPrefix(s, "-")
+}
+
 func main() {
 	if len(os.Args) < 2 {
-		printUsage()
-		os.Exit(1)
+		// No arguments - start interactive menu mode
+		menu := cli.NewMenuMode()
+		menu.DisplayMainMenu()
+		return
 	}
 
 	subcommand := os.Args[1]
@@ -99,12 +107,13 @@ For more help on a specific command, use:
 }
 
 func handleCACommand() {
-	caCmd := flag.NewFlagSet("ca", flag.ExitOnError)
-
-	if len(os.Args) < 3 {
-		fmt.Fprintf(os.Stderr, "Usage: certifier ca <generate|view> [options]\n")
-		os.Exit(1)
+	// If no subcommand provided, or if first arg is a flag, default to generate with interactive mode
+	if len(os.Args) < 3 || isFlag(os.Args[2]) {
+		generateCA(nil, os.Args[2:])
+		return
 	}
+
+	caCmd := flag.NewFlagSet("ca", flag.ExitOnError)
 
 	subcommand := os.Args[2]
 
@@ -120,9 +129,10 @@ func handleCACommand() {
 }
 
 func handleCertCommand() {
-	if len(os.Args) < 3 {
-		fmt.Fprintf(os.Stderr, "Usage: certifier cert <generate|sign|view|validate> [options]\n")
-		os.Exit(1)
+	// If no subcommand provided, or if first arg is a flag, default to generate with interactive mode
+	if len(os.Args) < 3 || isFlag(os.Args[2]) {
+		generateCert(os.Args[2:])
+		return
 	}
 
 	subcommand := os.Args[2]
@@ -143,9 +153,10 @@ func handleCertCommand() {
 }
 
 func handleCSRCommand() {
-	if len(os.Args) < 3 {
-		fmt.Fprintf(os.Stderr, "Usage: certifier csr <generate|view> [options]\n")
-		os.Exit(1)
+	// If no subcommand provided, or if first arg is a flag, default to generate with interactive mode
+	if len(os.Args) < 3 || isFlag(os.Args[2]) {
+		generateCSR(os.Args[2:])
+		return
 	}
 
 	subcommand := os.Args[2]

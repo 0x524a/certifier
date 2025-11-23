@@ -24,6 +24,18 @@ const (
 	KeyTypeEd25519 KeyType = "ed25519"
 )
 
+// CertificateType represents the type of certificate being generated
+type CertificateType string
+
+const (
+	// CertTypeClient - Client certificate (client authentication)
+	CertTypeClient CertificateType = "client"
+	// CertTypeServer - Server certificate (server authentication)
+	CertTypeServer CertificateType = "server"
+	// CertTypeBoth - Certificate for both client and server authentication
+	CertTypeBoth CertificateType = "both"
+)
+
 // CertificateConfig holds configuration for certificate generation
 type CertificateConfig struct {
 	// Required
@@ -40,6 +52,9 @@ type CertificateConfig struct {
 
 	// Key configuration
 	KeyType KeyType // Defaults to RSA2048
+
+	// Certificate type (client, server, or both)
+	CertType CertificateType // Defaults to "server" for non-CA certs
 
 	// Certificate validity
 	Validity int // Validity period in days
@@ -58,6 +73,7 @@ type CertificateConfig struct {
 	// Extensions
 	KeyUsage                x509.KeyUsage
 	ExtendedKeyUsage        []x509.ExtKeyUsage
+	ExtendedKeyUsageOIDs    []string // Custom EKU OIDs (e.g., "2.5.29.37.0" for module signing)
 	BasicConstraintsValid   bool
 	CRLDistributionPoints   []string
 	OCSPServer              []string
