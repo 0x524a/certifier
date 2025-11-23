@@ -51,6 +51,7 @@ func GenerateSelfSignedCertificate(config *CertificateConfig) (*x509.Certificate
 		IsCA:                  config.IsCA,
 		DNSNames:              config.DNSNames,
 		EmailAddresses:        config.EmailAddresses,
+		IPAddresses:           config.IPAddresses,
 		SignatureAlgorithm:    sigAlg,
 	}
 
@@ -130,6 +131,7 @@ func GenerateCASignedCertificate(
 		IsCA:               certConfig.IsCA,
 		DNSNames:           certConfig.DNSNames,
 		EmailAddresses:     certConfig.EmailAddresses,
+		IPAddresses:        certConfig.IPAddresses,
 		SignatureAlgorithm: sigAlg,
 	}
 
