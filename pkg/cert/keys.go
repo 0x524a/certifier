@@ -63,8 +63,16 @@ func GetKeySize(privateKey crypto.PrivateKey) int {
 
 // GetSignatureAlgorithmForKey returns the appropriate signature algorithm for a key
 func GetSignatureAlgorithmForKey(privateKey crypto.PrivateKey) (x509.SignatureAlgorithm, error) {
+	return GetSignatureAlgorithmForKeyWithPSS(privateKey, false)
+}
+
+// GetSignatureAlgorithmForKeyWithPSS determines the appropriate signature algorithm with PSS option
+func GetSignatureAlgorithmForKeyWithPSS(privateKey crypto.PrivateKey, usePSS bool) (x509.SignatureAlgorithm, error) {
 	switch key := privateKey.(type) {
 	case *rsa.PrivateKey:
+		if usePSS {
+			return x509.SHA256WithRSAPSS, nil
+		}
 		return x509.SHA256WithRSA, nil
 	case *ecdsa.PrivateKey:
 		switch key.Curve {
@@ -83,3 +91,4 @@ func GetSignatureAlgorithmForKey(privateKey crypto.PrivateKey) (x509.SignatureAl
 		return x509.UnknownSignatureAlgorithm, fmt.Errorf("unsupported key type: %T", privateKey)
 	}
 }
+
