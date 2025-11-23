@@ -226,17 +226,17 @@ func TestPromptStringSlice(t *testing.T) {
 
 			// Capture stdout to avoid cluttering test output
 			old := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
+			r, w, _ := os.Pipe()
+			os.Stdout = w
 
-		result := im.PromptStringSlice("Test prompt")
+			result := im.PromptStringSlice("Test prompt")
 
-		_ = w.Close()
-		os.Stdout = old
-		_, _ = io.ReadAll(r)
+			_ = w.Close()
+			os.Stdout = old
+			_, _ = io.ReadAll(r)
 
-		if len(result) != len(tt.expected) {
-			t.Errorf("PromptStringSlice length = %d, expected %d", len(result), len(tt.expected))
+			if len(result) != len(tt.expected) {
+				t.Errorf("PromptStringSlice length = %d, expected %d", len(result), len(tt.expected))
 				return
 			}
 
@@ -321,14 +321,14 @@ func TestPromptIPAddresses(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stdout = w
 
-		result := im.PromptIPAddresses()
+			result := im.PromptIPAddresses()
 
-		_ = w.Close()
-		os.Stdout = old
-		_, _ = io.ReadAll(r)
+			_ = w.Close()
+			os.Stdout = old
+			_, _ = io.ReadAll(r)
 
-		if len(result) != len(tt.expected) {
-			t.Errorf("PromptIPAddresses length = %d, expected %d", len(result), len(tt.expected))
+			if len(result) != len(tt.expected) {
+				t.Errorf("PromptIPAddresses length = %d, expected %d", len(result), len(tt.expected))
 				return
 			}
 

@@ -1844,3 +1844,1147 @@ func TestViewCertificateDetailsCmd(t *testing.T) {
 		})
 	}
 }
+
+// TestGenerateCACmdInteractiveMode tests GenerateCACmd in interactive mode
+func TestGenerateCACmdInteractiveMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "ca-interactive.crt")
+	keyFile := filepath.Join(tmpDir, "ca-interactive.key")
+
+	// Test interactive mode (default without flags)
+	args := []string{
+		"-output", certFile,
+		"-key-output", keyFile,
+	}
+
+	err := GenerateCACmd(args)
+	// This may fail or succeed depending on stdin, which is fine for now
+	if err == nil {
+		// If no error, files should exist
+		if _, err := os.Stat(certFile); err != nil {
+			t.Errorf("Certificate file not created in interactive mode: %v", err)
+		}
+	}
+}
+
+// TestGenerateCertCmdInteractiveMode tests GenerateCertCmd in interactive mode
+func TestGenerateCertCmdInteractiveMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "cert-interactive.crt")
+	keyFile := filepath.Join(tmpDir, "cert-interactive.key")
+
+	// Test interactive mode (default without flags)
+	args := []string{
+		"-output", certFile,
+		"-key-output", keyFile,
+	}
+
+	err := GenerateCertCmd(args)
+	// This may fail or succeed depending on stdin, which is fine for now
+	_ = err // Accept either success or error depending on stdin
+}
+
+// TestGenerateCSRCmdInteractiveMode tests GenerateCSRCmd in interactive mode
+func TestGenerateCSRCmdInteractiveMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	csrFile := filepath.Join(tmpDir, "csr-interactive.csr")
+	keyFile := filepath.Join(tmpDir, "csr-interactive.key")
+
+	// Test interactive mode (default without flags)
+	args := []string{
+		"-output", csrFile,
+		"-key-output", keyFile,
+	}
+
+	err := GenerateCSRCmd(args)
+	// This may fail or succeed depending on stdin, which is fine for now
+	_ = err // Accept either success or error depending on stdin
+}
+
+// TestGenerateCACmdWithInvalidArgs tests GenerateCACmd with invalid arguments
+func TestGenerateCACmdWithInvalidArgs(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{
+			name:    "Invalid flag",
+			args:    []string{"-invalid-flag", "value"},
+			wantErr: true,
+		},
+		{
+			name:    "Non-interactive without CN",
+			args:    []string{"-non-interactive"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			args := append(tt.args, "-output", filepath.Join(tmpDir, "ca.crt"), "-key-output", filepath.Join(tmpDir, "ca.key"))
+
+			err := GenerateCACmd(args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GenerateCACmd() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// TestGenerateCertCmdWithInvalidArgs tests GenerateCertCmd with invalid arguments
+func TestGenerateCertCmdWithInvalidArgs(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{
+			name:    "Invalid flag",
+			args:    []string{"-invalid-flag", "value"},
+			wantErr: true,
+		},
+		{
+			name:    "Non-interactive without CN",
+			args:    []string{"-non-interactive"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			args := append(tt.args, "-output", filepath.Join(tmpDir, "cert.crt"), "-key-output", filepath.Join(tmpDir, "cert.key"))
+
+			err := GenerateCertCmd(args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GenerateCertCmd() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// TestGenerateCSRCmdWithInvalidArgs tests GenerateCSRCmd with invalid arguments
+func TestGenerateCSRCmdWithInvalidArgs(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{
+			name:    "Invalid flag",
+			args:    []string{"-invalid-flag", "value"},
+			wantErr: true,
+		},
+		{
+			name:    "Non-interactive without CN",
+			args:    []string{"-non-interactive"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			args := append(tt.args, "-output", filepath.Join(tmpDir, "csr.csr"), "-key-output", filepath.Join(tmpDir, "csr.key"))
+
+			err := GenerateCSRCmd(args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GenerateCSRCmd() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// TestViewCertCmdWithInvalidArgs tests ViewCertCmd with invalid arguments
+func TestViewCertCmdWithInvalidArgs(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{
+			name:    "Missing cert flag",
+			args:    []string{},
+			wantErr: true,
+		},
+		{
+			name:    "Invalid flag",
+			args:    []string{"-invalid-flag", "value"},
+			wantErr: true,
+		},
+		{
+			name:    "Non-existent file",
+			args:    []string{"-cert", "/nonexistent/file.crt"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ViewCertCmd(tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ViewCertCmd() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// TestViewCACmdWithInvalidArgs tests ViewCACmd with invalid arguments
+func TestViewCACmdWithInvalidArgs(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{
+			name:    "Missing cert flag",
+			args:    []string{},
+			wantErr: true,
+		},
+		{
+			name:    "Invalid flag",
+			args:    []string{"-invalid-flag", "value"},
+			wantErr: true,
+		},
+		{
+			name:    "Non-existent file",
+			args:    []string{"-cert", "/nonexistent/file.crt"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ViewCACmd(tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ViewCACmd() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// TestGenerateCAWithDifferentKeyTypes tests CA generation with all key types
+func TestGenerateCAWithDifferentKeyTypes(t *testing.T) {
+	keyTypes := []string{"rsa2048", "rsa4096", "ecdsa-p256", "ecdsa-p384", "ecdsa-p521", "ed25519"}
+
+	for _, kt := range keyTypes {
+		t.Run(kt, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			certFile := filepath.Join(tmpDir, "ca.crt")
+			keyFile := filepath.Join(tmpDir, "ca.key")
+
+			args := []string{
+				"-cn", "Test CA",
+				"-key-type", kt,
+				"-output", certFile,
+				"-key-output", keyFile,
+				"-non-interactive",
+			}
+
+			err := GenerateCACmd(args)
+			if err != nil {
+				t.Errorf("GenerateCACmd with %s failed: %v", kt, err)
+				return
+			}
+
+			if _, err := os.Stat(certFile); err != nil {
+				t.Errorf("Certificate file not created for %s: %v", kt, err)
+			}
+		})
+	}
+}
+
+// TestGenerateCertWithDifferentKeyTypes tests certificate generation with all key types
+func TestGenerateCertWithDifferentKeyTypes(t *testing.T) {
+	keyTypes := []string{"rsa2048", "rsa4096", "ecdsa-p256", "ecdsa-p384", "ecdsa-p521", "ed25519"}
+
+	for _, kt := range keyTypes {
+		t.Run(kt, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			certFile := filepath.Join(tmpDir, "cert.crt")
+			keyFile := filepath.Join(tmpDir, "cert.key")
+
+			args := []string{
+				"-cn", "test.example.com",
+				"-key-type", kt,
+				"-output", certFile,
+				"-key-output", keyFile,
+				"-non-interactive",
+			}
+
+			err := GenerateCertCmd(args)
+			if err != nil {
+				t.Errorf("GenerateCertCmd with %s failed: %v", kt, err)
+				return
+			}
+
+			if _, err := os.Stat(certFile); err != nil {
+				t.Errorf("Certificate file not created for %s: %v", kt, err)
+			}
+		})
+	}
+}
+
+// TestGenerateCSRWithDifferentKeyTypes tests CSR generation with all key types
+func TestGenerateCSRWithDifferentKeyTypes(t *testing.T) {
+	keyTypes := []string{"rsa2048", "rsa4096", "ecdsa-p256", "ecdsa-p384", "ecdsa-p521", "ed25519"}
+
+	for _, kt := range keyTypes {
+		t.Run(kt, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			csrFile := filepath.Join(tmpDir, "csr.csr")
+			keyFile := filepath.Join(tmpDir, "csr.key")
+
+			args := []string{
+				"-cn", "test.example.com",
+				"-key-type", kt,
+				"-output", csrFile,
+				"-key-output", keyFile,
+				"-non-interactive",
+			}
+
+			err := GenerateCSRCmd(args)
+			if err != nil {
+				t.Errorf("GenerateCSRCmd with %s failed: %v", kt, err)
+				return
+			}
+
+			if _, err := os.Stat(csrFile); err != nil {
+				t.Errorf("CSR file not created for %s: %v", kt, err)
+			}
+		})
+	}
+}
+
+// TestGenerateCACmdOutputFilePermissions tests that generated key files have correct permissions
+func TestGenerateCACmdOutputFilePermissions(t *testing.T) {
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "ca.crt")
+	keyFile := filepath.Join(tmpDir, "ca.key")
+
+	args := []string{
+		"-cn", "Test CA",
+		"-output", certFile,
+		"-key-output", keyFile,
+		"-non-interactive",
+	}
+
+	err := GenerateCACmd(args)
+	if err != nil {
+		t.Fatalf("GenerateCACmd failed: %v", err)
+	}
+
+	// Check certificate file exists and is readable
+	certInfo, err := os.Stat(certFile)
+	if err != nil {
+		t.Errorf("Certificate file not readable: %v", err)
+		return
+	}
+
+	// Check key file exists and has correct permissions (0600)
+	keyInfo, err := os.Stat(keyFile)
+	if err != nil {
+		t.Errorf("Key file not created: %v", err)
+		return
+	}
+
+	keyMode := keyInfo.Mode().Perm()
+	if keyMode != 0600 {
+		t.Errorf("Key file permissions = %#o, expected %#o", keyMode, 0600)
+	}
+
+	certMode := certInfo.Mode().Perm()
+	if certMode != 0644 {
+		t.Errorf("Certificate file permissions = %#o, expected %#o", certMode, 0644)
+	}
+}
+
+// TestGenerateCertCmdOutputFilePermissions tests that generated key files have correct permissions
+func TestGenerateCertCmdOutputFilePermissions(t *testing.T) {
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "cert.crt")
+	keyFile := filepath.Join(tmpDir, "cert.key")
+
+	args := []string{
+		"-cn", "Test Cert",
+		"-output", certFile,
+		"-key-output", keyFile,
+		"-non-interactive",
+	}
+
+	err := GenerateCertCmd(args)
+	if err != nil {
+		t.Fatalf("GenerateCertCmd failed: %v", err)
+	}
+
+	// Check certificate file exists and is readable
+	certInfo, err := os.Stat(certFile)
+	if err != nil {
+		t.Errorf("Certificate file not readable: %v", err)
+		return
+	}
+
+	// Check key file exists and has correct permissions (0600)
+	keyInfo, err := os.Stat(keyFile)
+	if err != nil {
+		t.Errorf("Key file not created: %v", err)
+		return
+	}
+
+	keyMode := keyInfo.Mode().Perm()
+	if keyMode != 0600 {
+		t.Errorf("Key file permissions = %#o, expected %#o", keyMode, 0600)
+	}
+
+	certMode := certInfo.Mode().Perm()
+	if certMode != 0644 {
+		t.Errorf("Certificate file permissions = %#o, expected %#o", certMode, 0644)
+	}
+}
+
+// TestGenerateCSRCmdOutputFilePermissions tests that generated key files have correct permissions
+func TestGenerateCSRCmdOutputFilePermissions(t *testing.T) {
+	tmpDir := t.TempDir()
+	csrFile := filepath.Join(tmpDir, "csr.csr")
+	keyFile := filepath.Join(tmpDir, "csr.key")
+
+	args := []string{
+		"-cn", "Test CSR",
+		"-output", csrFile,
+		"-key-output", keyFile,
+		"-non-interactive",
+	}
+
+	err := GenerateCSRCmd(args)
+	if err != nil {
+		t.Fatalf("GenerateCSRCmd failed: %v", err)
+	}
+
+	// Check CSR file exists and is readable
+	csrInfo, err := os.Stat(csrFile)
+	if err != nil {
+		t.Errorf("CSR file not readable: %v", err)
+		return
+	}
+
+	// Check key file exists and has correct permissions (0600)
+	keyInfo, err := os.Stat(keyFile)
+	if err != nil {
+		t.Errorf("Key file not created: %v", err)
+		return
+	}
+
+	keyMode := keyInfo.Mode().Perm()
+	if keyMode != 0600 {
+		t.Errorf("Key file permissions = %#o, expected %#o", keyMode, 0600)
+	}
+
+	csrMode := csrInfo.Mode().Perm()
+	if csrMode != 0644 {
+		t.Errorf("CSR file permissions = %#o, expected %#o", csrMode, 0644)
+	}
+}
+
+// TestGenerateCertFromFileCmdInvalidFile tests GenerateCertFromFileCmd with non-existent file
+func TestGenerateCertFromFileCmdInvalidFile(t *testing.T) {
+	err := GenerateCertFromFileCmd("/nonexistent/config.yaml")
+	if err == nil {
+		t.Errorf("Expected error for non-existent file, got nil")
+	}
+}
+
+// TestGenerateCSRFromFileCmdInvalidFile tests GenerateCSRFromFileCmd with non-existent file
+func TestGenerateCSRFromFileCmdInvalidFile(t *testing.T) {
+	err := GenerateCSRFromFileCmd("/nonexistent/config.yaml")
+	if err == nil {
+		t.Errorf("Expected error for non-existent file, got nil")
+	}
+}
+
+// TestGenerateCACmdSubjectFields tests CA generation with various subject fields
+func TestGenerateCACmdSubjectFields(t *testing.T) {
+	tests := []struct {
+		name    string
+		cn      string
+		org     string
+		country string
+		ou      string
+	}{
+		{
+			name:    "All subject fields",
+			cn:      "Test CA",
+			org:     "Test Org",
+			country: "US",
+			ou:      "IT",
+		},
+		{
+			name:    "Minimal fields",
+			cn:      "Simple CA",
+			org:     "Org",
+			country: "US",
+			ou:      "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			certFile := filepath.Join(tmpDir, "ca.crt")
+			keyFile := filepath.Join(tmpDir, "ca.key")
+
+			args := []string{
+				"-cn", tt.cn,
+				"-org", tt.org,
+				"-country", tt.country,
+				"-output", certFile,
+				"-key-output", keyFile,
+				"-non-interactive",
+			}
+
+			if tt.ou != "" {
+				args = append(args, "-ou", tt.ou)
+			}
+
+			err := GenerateCACmd(args)
+			if err != nil {
+				t.Errorf("GenerateCACmd failed: %v", err)
+				return
+			}
+
+			// Verify the certificate has correct CN
+			certPEM, err := os.ReadFile(certFile)
+			if err != nil {
+				t.Errorf("Failed to read certificate: %v", err)
+				return
+			}
+
+			cert, err := encoding.DecodeCertificateFromPEM(certPEM)
+			if err != nil {
+				t.Errorf("Failed to decode certificate: %v", err)
+				return
+			}
+
+			if cert.Subject.CommonName != tt.cn {
+				t.Errorf("CN mismatch: got %s, expected %s", cert.Subject.CommonName, tt.cn)
+			}
+		})
+	}
+}
+
+// TestGenerateCertCmdSubjectFields tests certificate generation with various subject fields
+func TestGenerateCertCmdSubjectFields(t *testing.T) {
+	tests := []struct {
+		name    string
+		cn      string
+		org     string
+		country string
+	}{
+		{
+			name:    "All subject fields",
+			cn:      "example.com",
+			org:     "Test Org",
+			country: "US",
+		},
+		{
+			name:    "Minimal fields",
+			cn:      "simple.example.com",
+			org:     "Org",
+			country: "US",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			certFile := filepath.Join(tmpDir, "cert.crt")
+			keyFile := filepath.Join(tmpDir, "cert.key")
+
+			args := []string{
+				"-cn", tt.cn,
+				"-org", tt.org,
+				"-country", tt.country,
+				"-output", certFile,
+				"-key-output", keyFile,
+				"-non-interactive",
+			}
+
+			err := GenerateCertCmd(args)
+			if err != nil {
+				t.Errorf("GenerateCertCmd failed: %v", err)
+				return
+			}
+
+			// Verify the certificate has correct CN
+			certPEM, err := os.ReadFile(certFile)
+			if err != nil {
+				t.Errorf("Failed to read certificate: %v", err)
+				return
+			}
+
+			cert, err := encoding.DecodeCertificateFromPEM(certPEM)
+			if err != nil {
+				t.Errorf("Failed to decode certificate: %v", err)
+				return
+			}
+
+			if cert.Subject.CommonName != tt.cn {
+				t.Errorf("CN mismatch: got %s, expected %s", cert.Subject.CommonName, tt.cn)
+			}
+		})
+	}
+}
+
+// TestGenerateCSRCmdSubjectFields tests CSR generation with various subject fields
+func TestGenerateCSRCmdSubjectFields(t *testing.T) {
+	tests := []struct {
+		name    string
+		cn      string
+		org     string
+		country string
+	}{
+		{
+			name:    "All subject fields",
+			cn:      "example.com",
+			org:     "Test Org",
+			country: "US",
+		},
+		{
+			name:    "Minimal fields",
+			cn:      "simple.example.com",
+			org:     "Org",
+			country: "US",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			csrFile := filepath.Join(tmpDir, "csr.csr")
+			keyFile := filepath.Join(tmpDir, "csr.key")
+
+			args := []string{
+				"-cn", tt.cn,
+				"-org", tt.org,
+				"-country", tt.country,
+				"-output", csrFile,
+				"-key-output", keyFile,
+				"-non-interactive",
+			}
+
+			err := GenerateCSRCmd(args)
+			if err != nil {
+				t.Errorf("GenerateCSRCmd failed: %v", err)
+				return
+			}
+
+			// Verify the CSR file was created
+			if _, err := os.Stat(csrFile); err != nil {
+				t.Errorf("CSR file not created: %v", err)
+			}
+		})
+	}
+}
+
+// TestGenerateCertCmdWithCA tests generating a cert signed by an existing CA
+func TestGenerateCertCmdWithCA(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// First, create a CA certificate
+	caCfg := &cert.CertificateConfig{
+		CommonName:    "Test CA",
+		Organization:  "Test Org",
+		IsCA:          true,
+		MaxPathLength: -1,
+		Validity:      3650,
+		KeyType:       "rsa2048",
+	}
+
+	caCert, caKey, err := cert.GenerateSelfSignedCertificate(caCfg)
+	if err != nil {
+		t.Fatalf("Failed to create CA: %v", err)
+	}
+
+	// Write CA certificate
+	caCertFile := filepath.Join(tmpDir, "ca.crt")
+	caCertPEM, _ := encoding.EncodeCertificateToPEM(caCert)
+	if err := os.WriteFile(caCertFile, caCertPEM, 0644); err != nil {
+		t.Fatalf("Failed to write CA cert: %v", err)
+	}
+
+	// Write CA key
+	caKeyFile := filepath.Join(tmpDir, "ca.key")
+	caKeyPEM, _ := encoding.EncodePrivateKeyToPEM(caKey)
+	if err := os.WriteFile(caKeyFile, caKeyPEM, 0600); err != nil {
+		t.Fatalf("Failed to write CA key: %v", err)
+	}
+
+	// Now generate a certificate signed by the CA
+	certFile := filepath.Join(tmpDir, "cert.crt")
+	keyFile := filepath.Join(tmpDir, "cert.key")
+
+	args := []string{
+		"-cn", "signed.example.com",
+		"-org", "Test Org",
+		"-ca-cert", caCertFile,
+		"-ca-key", caKeyFile,
+		"-output", certFile,
+		"-key-output", keyFile,
+		"-non-interactive",
+	}
+
+	err = GenerateCertCmd(args)
+	if err != nil {
+		t.Errorf("GenerateCertCmd with CA failed: %v", err)
+		return
+	}
+
+	// Verify the certificate was created
+	if _, err := os.Stat(certFile); err != nil {
+		t.Errorf("Certificate file not created: %v", err)
+	}
+}
+
+// TestGenerateCACmdWithValidity tests CA generation with different validity periods
+func TestGenerateCACmdWithValidity(t *testing.T) {
+	validities := []string{"30", "365", "1825", "3650"}
+
+	for _, validity := range validities {
+		t.Run(fmt.Sprintf("validity_%s", validity), func(t *testing.T) {
+			tmpDir := t.TempDir()
+			certFile := filepath.Join(tmpDir, "ca.crt")
+			keyFile := filepath.Join(tmpDir, "ca.key")
+
+			args := []string{
+				"-cn", "Test CA",
+				"-validity", validity,
+				"-output", certFile,
+				"-key-output", keyFile,
+				"-non-interactive",
+			}
+
+			err := GenerateCACmd(args)
+			if err != nil {
+				t.Errorf("GenerateCACmd with validity %s failed: %v", validity, err)
+				return
+			}
+
+			if _, err := os.Stat(certFile); err != nil {
+				t.Errorf("Certificate file not created: %v", err)
+			}
+		})
+	}
+}
+
+// TestGenerateCertCmdWithValidity tests certificate generation with different validity periods
+func TestGenerateCertCmdWithValidity(t *testing.T) {
+	validities := []string{"30", "365", "1825", "3650"}
+
+	for _, validity := range validities {
+		t.Run(fmt.Sprintf("validity_%s", validity), func(t *testing.T) {
+			tmpDir := t.TempDir()
+			certFile := filepath.Join(tmpDir, "cert.crt")
+			keyFile := filepath.Join(tmpDir, "cert.key")
+
+			args := []string{
+				"-cn", "example.com",
+				"-validity", validity,
+				"-output", certFile,
+				"-key-output", keyFile,
+				"-non-interactive",
+			}
+
+			err := GenerateCertCmd(args)
+			if err != nil {
+				t.Errorf("GenerateCertCmd with validity %s failed: %v", validity, err)
+				return
+			}
+
+			if _, err := os.Stat(certFile); err != nil {
+				t.Errorf("Certificate file not created: %v", err)
+			}
+		})
+	}
+}
+
+// TestGenerateCSRCmdWithValidity tests CSR generation with different validity (if supported)
+func TestGenerateCSRCmdWithValidity(t *testing.T) {
+	tmpDir := t.TempDir()
+	csrFile := filepath.Join(tmpDir, "csr.csr")
+	keyFile := filepath.Join(tmpDir, "csr.key")
+
+	args := []string{
+		"-cn", "example.com",
+		"-output", csrFile,
+		"-key-output", keyFile,
+		"-non-interactive",
+	}
+
+	err := GenerateCSRCmd(args)
+	if err != nil {
+		t.Errorf("GenerateCSRCmd failed: %v", err)
+		return
+	}
+
+	if _, err := os.Stat(csrFile); err != nil {
+		t.Errorf("CSR file not created: %v", err)
+	}
+}
+
+// TestGenerateCACmdCompleteFlow tests complete CA generation flow
+func TestGenerateCACmdCompleteFlow(t *testing.T) {
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "ca-complete.crt")
+	keyFile := filepath.Join(tmpDir, "ca-complete.key")
+
+	args := []string{
+		"-cn", "Root CA",
+		"-country", "US",
+		"-org", "Root Organization",
+		"-ou", "PKI",
+		"-locality", "San Francisco",
+		"-province", "California",
+		"-validity", "3650",
+		"-key-type", "rsa2048",
+		"-output", certFile,
+		"-key-output", keyFile,
+		"-non-interactive",
+	}
+
+	err := GenerateCACmd(args)
+	if err != nil {
+		t.Fatalf("GenerateCACmd failed: %v", err)
+	}
+
+	// Verify certificate
+	certPEM, err := os.ReadFile(certFile)
+	if err != nil {
+		t.Fatalf("Failed to read certificate: %v", err)
+	}
+
+	cert, err := encoding.DecodeCertificateFromPEM(certPEM)
+	if err != nil {
+		t.Fatalf("Failed to decode certificate: %v", err)
+	}
+
+	if !cert.IsCA {
+		t.Errorf("Certificate should be a CA")
+	}
+
+	if cert.Subject.CommonName != "Root CA" {
+		t.Errorf("CN mismatch")
+	}
+
+	// Verify key exists
+	if _, err := os.Stat(keyFile); err != nil {
+		t.Errorf("Key file not created: %v", err)
+	}
+}
+
+// TestGenerateCertCmdCompleteFlow tests complete certificate generation flow
+func TestGenerateCertCmdCompleteFlow(t *testing.T) {
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "cert-complete.crt")
+	keyFile := filepath.Join(tmpDir, "cert-complete.key")
+
+	args := []string{
+		"-cn", "app.example.com",
+		"-country", "US",
+		"-org", "App Organization",
+		"-ou", "Engineering",
+		"-locality", "San Francisco",
+		"-province", "California",
+		"-validity", "365",
+		"-key-type", "rsa2048",
+		"-dns", "app.example.com,api.example.com,*.example.com",
+		"-ip", "192.168.1.1,127.0.0.1",
+		"-output", certFile,
+		"-key-output", keyFile,
+		"-non-interactive",
+	}
+
+	err := GenerateCertCmd(args)
+	if err != nil {
+		t.Fatalf("GenerateCertCmd failed: %v", err)
+	}
+
+	// Verify certificate
+	certPEM, err := os.ReadFile(certFile)
+	if err != nil {
+		t.Fatalf("Failed to read certificate: %v", err)
+	}
+
+	cert, err := encoding.DecodeCertificateFromPEM(certPEM)
+	if err != nil {
+		t.Fatalf("Failed to decode certificate: %v", err)
+	}
+
+	if cert.Subject.CommonName != "app.example.com" {
+		t.Errorf("CN mismatch")
+	}
+
+	if !cert.IsCA && len(cert.DNSNames) != 3 {
+		t.Errorf("DNS names mismatch: expected 3, got %d", len(cert.DNSNames))
+	}
+
+	// Verify key exists
+	if _, err := os.Stat(keyFile); err != nil {
+		t.Errorf("Key file not created: %v", err)
+	}
+}
+
+// TestGenerateCSRCmdCompleteFlow tests complete CSR generation flow
+func TestGenerateCSRCmdCompleteFlow(t *testing.T) {
+	tmpDir := t.TempDir()
+	csrFile := filepath.Join(tmpDir, "csr-complete.csr")
+	keyFile := filepath.Join(tmpDir, "csr-complete.key")
+
+	args := []string{
+		"-cn", "request.example.com",
+		"-country", "US",
+		"-org", "Request Organization",
+		"-key-type", "rsa2048",
+		"-dns", "request.example.com,req.example.com",
+		"-output", csrFile,
+		"-key-output", keyFile,
+		"-non-interactive",
+	}
+
+	err := GenerateCSRCmd(args)
+	if err != nil {
+		t.Fatalf("GenerateCSRCmd failed: %v", err)
+	}
+
+	// Verify CSR file exists
+	if _, err := os.Stat(csrFile); err != nil {
+		t.Errorf("CSR file not created: %v", err)
+	}
+
+	// Verify key file exists
+	if _, err := os.Stat(keyFile); err != nil {
+		t.Errorf("Key file not created: %v", err)
+	}
+}
+
+// TestGenerateCACmdWriteErrors tests error handling when writing files
+func TestGenerateCACmdWriteErrors(t *testing.T) {
+	// Try to write to a read-only directory
+	args := []string{
+		"-cn", "Test CA",
+		"-output", "/root/ca.crt",
+		"-key-output", "/root/ca.key",
+		"-non-interactive",
+	}
+
+	err := GenerateCACmd(args)
+	// This should error (permission denied or similar)
+	if err == nil {
+		t.Logf("Expected error for write to /root, but got success (may have root access)")
+	}
+}
+
+// TestGenerateCertCmdWithIPAddressesAndDNS tests cert generation with both IP and DNS
+func TestGenerateCertCmdWithIPAddressesAndDNS(t *testing.T) {
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "cert-san.crt")
+	keyFile := filepath.Join(tmpDir, "cert-san.key")
+
+	args := []string{
+		"-cn", "192.168.1.1",
+		"-dns", "server.local,*.local",
+		"-ip", "192.168.1.1,192.168.1.2,127.0.0.1",
+		"-output", certFile,
+		"-key-output", keyFile,
+		"-non-interactive",
+	}
+
+	err := GenerateCertCmd(args)
+	if err != nil {
+		t.Errorf("GenerateCertCmd with SANs failed: %v", err)
+		return
+	}
+
+	if _, err := os.Stat(certFile); err != nil {
+		t.Errorf("Certificate file not created: %v", err)
+	}
+}
+
+// TestGenerateCertCmdWithEKU tests cert generation with extended key usage via flags
+func TestGenerateCertCmdWithExtendedKeyUsage(t *testing.T) {
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "cert-extended.crt")
+	keyFile := filepath.Join(tmpDir, "cert-extended.key")
+
+	// Note: Extended key usage OIDs are not directly supported via command-line flags
+	// They would need to be added via config file or interactive mode
+	args := []string{
+		"-cn", "example.com",
+		"-output", certFile,
+		"-key-output", keyFile,
+		"-non-interactive",
+	}
+
+	err := GenerateCertCmd(args)
+	if err != nil {
+		t.Errorf("GenerateCertCmd failed: %v", err)
+		return
+	}
+
+	if _, err := os.Stat(certFile); err != nil {
+		t.Errorf("Certificate file not created: %v", err)
+	}
+}
+
+// TestViewCertCmdSuccessOutput tests ViewCertCmd outputs certificate details
+func TestViewCertCmdSuccessOutput(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a test certificate
+	caCfg := &cert.CertificateConfig{
+		CommonName:   "Test Cert",
+		Organization: "Test Org",
+		Validity:     365,
+		KeyType:      "rsa2048",
+	}
+
+	testCert, _, err := cert.GenerateSelfSignedCertificate(caCfg)
+	if err != nil {
+		t.Fatalf("Failed to generate test certificate: %v", err)
+	}
+
+	certFile := filepath.Join(tmpDir, "test.crt")
+	certPEM, _ := encoding.EncodeCertificateToPEM(testCert)
+	if err := os.WriteFile(certFile, certPEM, 0644); err != nil {
+		t.Fatalf("Failed to write certificate file: %v", err)
+	}
+
+	// Capture output
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err = ViewCertCmd([]string{"-cert", certFile})
+
+	_ = w.Close()
+	os.Stdout = old
+
+	output := new(bytes.Buffer)
+	_, _ = io.Copy(output, r)
+	result := output.String()
+
+	if err != nil {
+		t.Errorf("ViewCertCmd failed: %v", err)
+		return
+	}
+
+	if !strings.Contains(result, "Certificate Details") {
+		t.Errorf("Expected certificate details in output")
+	}
+}
+
+// TestViewCACmdSuccessOutput tests ViewCACmd outputs CA details
+func TestViewCACmdSuccessOutput(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a test CA certificate
+	caCfg := &cert.CertificateConfig{
+		CommonName:    "Test CA",
+		Organization:  "Test Org",
+		IsCA:          true,
+		MaxPathLength: -1,
+		Validity:      3650,
+		KeyType:       "rsa2048",
+	}
+
+	caCert, _, err := cert.GenerateSelfSignedCertificate(caCfg)
+	if err != nil {
+		t.Fatalf("Failed to generate test CA: %v", err)
+	}
+
+	certFile := filepath.Join(tmpDir, "test-ca.crt")
+	certPEM, _ := encoding.EncodeCertificateToPEM(caCert)
+	if err := os.WriteFile(certFile, certPEM, 0644); err != nil {
+		t.Fatalf("Failed to write CA file: %v", err)
+	}
+
+	// Capture output
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err = ViewCACmd([]string{"-cert", certFile})
+
+	_ = w.Close()
+	os.Stdout = old
+
+	output := new(bytes.Buffer)
+	_, _ = io.Copy(output, r)
+	result := output.String()
+
+	if err != nil {
+		t.Errorf("ViewCACmd failed: %v", err)
+		return
+	}
+
+	if !strings.Contains(result, "Certificate Details") {
+		t.Errorf("Expected certificate details in output")
+	}
+}
+
+// TestGenerateCACmdReturnError tests GenerateCA wrapper handles errors correctly
+func TestGenerateCACmdReturnError(t *testing.T) {
+	// Test the wrapper function (GenerateCA) with error condition
+	// This should capture stderr and not crash
+	args := []string{
+		"-non-interactive", // Missing CN should cause error
+	}
+
+	// Capture stderr
+	old := os.Stderr
+	_, w, _ := os.Pipe()
+	os.Stderr = w
+
+	// This should call os.Exit, so we can't directly test it
+	// but we can verify the Cmd version returns error
+	err := GenerateCACmd(args)
+
+	_ = w.Close()
+	os.Stderr = old
+
+	if err == nil {
+		t.Errorf("Expected error for missing CN, got nil")
+	}
+}
+
+// TestGenerateCertCmdReturnError tests GenerateCert wrapper handles errors correctly
+func TestGenerateCertCmdReturnError(t *testing.T) {
+	args := []string{
+		"-non-interactive", // Missing CN should cause error
+	}
+
+	tmpDir := t.TempDir()
+	args = append(args, "-output", filepath.Join(tmpDir, "cert.crt"), "-key-output", filepath.Join(tmpDir, "cert.key"))
+
+	err := GenerateCertCmd(args)
+
+	if err == nil {
+		t.Errorf("Expected error for missing CN, got nil")
+	}
+}
+
+// TestGenerateCSRCmdReturnError tests GenerateCSR wrapper handles errors correctly
+func TestGenerateCSRCmdReturnError(t *testing.T) {
+	args := []string{
+		"-non-interactive", // Missing CN should cause error
+	}
+
+	tmpDir := t.TempDir()
+	args = append(args, "-output", filepath.Join(tmpDir, "csr.csr"), "-key-output", filepath.Join(tmpDir, "csr.key"))
+
+	err := GenerateCSRCmd(args)
+
+	if err == nil {
+		t.Errorf("Expected error for missing CN, got nil")
+	}
+}

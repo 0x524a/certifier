@@ -213,14 +213,14 @@ func TestMenuScreens(t *testing.T) {
 
 			tt.testFunc(m)
 
-		_ = w.Close()
-		os.Stdout = old
+			_ = w.Close()
+			os.Stdout = old
 
-		buf := new(strings.Builder)
-		_, _ = io.Copy(buf, r)
-		output := buf.String()
+			buf := new(strings.Builder)
+			_, _ = io.Copy(buf, r)
+			output := buf.String()
 
-		if !strings.Contains(output, tt.contains) {
+			if !strings.Contains(output, tt.contains) {
 				t.Errorf("Menu screen missing: %q", tt.contains)
 			}
 		})
@@ -260,4 +260,3 @@ func TestMenuOptionValidation(t *testing.T) {
 	// This test just ensures these methods are callable
 	// Full integration testing would require mocking os.Exit
 }
-
