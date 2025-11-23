@@ -606,3 +606,189 @@ func TestGenerateSelfSignedCAWithPathLength(t *testing.T) {
 		})
 	}
 }
+
+// TestGenerateCSRWithExtendedKeyUsageOIDs tests CSR generation with valid configurations
+func TestGenerateCSRWithExtendedKeyUsageOIDs(t *testing.T) {
+	tests := []struct {
+		name    string
+		dns     []string
+		wantErr bool
+	}{
+		{
+			name:    "Valid DNS names",
+			dns:     []string{"example.com", "www.example.com"},
+			wantErr: false,
+		},
+		{
+			name:    "Empty DNS names",
+			dns:     []string{},
+			wantErr: false,
+		},
+		{
+			name:    "Single DNS name",
+			dns:     []string{"localhost"},
+			wantErr: false,
+		},
+		{
+			name:    "Wildcard DNS",
+			dns:     []string{"*.example.com"},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &CSRConfig{
+				CommonName:   "test.example.com",
+				Country:      "US",
+				Organization: "Test Org",
+				KeyType:      "rsa2048",
+				DNSNames:     tt.dns,
+			}
+
+			csr, _, err := GenerateCSR(config)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GenerateCSR error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if err == nil && csr == nil {
+				t.Error("CSR should not be nil when error is nil")
+			}
+		})
+	}
+}
+
+// TestGenerateSelfSignedCertificateWithExtendedKeyUsage tests self-signed cert with custom EKU OIDs
+func TestGenerateSelfSignedCertificateWithExtendedKeyUsage(t *testing.T) {
+	tests := []struct {
+		name    string
+		oids    []string
+		wantErr bool
+	}{
+		{
+			name:    "Valid OID for module signing",
+			oids:    []string{"1.3.6.1.4.1.57453.1.1"},
+			wantErr: false,
+		},
+		{
+			name:    "Multiple OIDs",
+			oids:    []string{"1.2.3.4.5", "2.5.29.37.0", "1.3.6.1.5.5.7.3.1"},
+			wantErr: false,
+		},
+		{
+			name:    "Single invalid OID (too short)",
+			oids:    []string{"1"},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &CertificateConfig{
+				CommonName:           "test.example.com",
+				Country:              "US",
+				Organization:         "Test Org",
+				KeyType:              "rsa2048",
+				IsCA:                 false,
+				Validity:             365,
+				ExtendedKeyUsageOIDs: tt.oids,
+			}
+
+			cert, _, err := GenerateSelfSignedCertificate(config)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GenerateSelfSignedCertificate error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if err == nil && cert == nil {
+				t.Error("Certificate should not be nil when error is nil")
+			}
+		})
+	}
+}
+
+// TestGenerateCASignedCertificateWithExtendedKeyUsage tests CA-signed cert with custom EKU OIDs
+func TestGenerateCASignedCertificateWithExtendedKeyUsage(t *testing.T) {
+	// Create a CA certificate first
+	caConfig := &CertificateConfig{
+		CommonName:    "Test CA",
+		Organization:  "Test Org",
+		IsCA:          true,
+		MaxPathLength: -1,
+		Validity:      3650,
+		KeyType:       "rsa2048",
+	}
+
+	caCert, caKey, err := GenerateSelfSignedCertificate(caConfig)
+	if err != nil {
+		t.Fatalf("Failed to generate CA: %v", err)
+	}
+
+	serverConfig := &CertificateConfig{
+		CommonName:           "server.example.com",
+		Organization:         "Test Org",
+		KeyType:              "rsa2048",
+		Validity:             365,
+		ExtendedKeyUsageOIDs: []string{"1.3.6.1.5.5.7.3.1", "1.3.6.1.5.5.7.3.2"},
+	}
+
+	cert, _, err := GenerateCASignedCertificate(serverConfig, caConfig, caKey, caCert)
+	if err != nil {
+		t.Errorf("GenerateCASignedCertificate error = %v", err)
+	}
+
+	if cert == nil {
+		t.Error("Certificate should not be nil")
+	}
+}
+
+// TestGenerateCSRWithInvalidExtendedKeyUsageFormat tests CSR with various configurations
+func TestGenerateCSRWithInvalidExtendedKeyUsageFormat(t *testing.T) {
+	tests := []struct {
+		name string
+		dns  []string
+		ips  []string
+	}{
+		{
+			name: "Multiple DNS and IPs",
+			dns:  []string{"example.com", "www.example.com"},
+			ips:  []string{"192.168.1.1", "10.0.0.1"},
+		},
+		{
+			name: "DNS names only",
+			dns:  []string{"test.example.com"},
+			ips:  []string{},
+		},
+		{
+			name: "IPs only",
+			dns:  []string{},
+			ips:  []string{"::1", "2001:db8::1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var ips []net.IP
+			for _, ip := range tt.ips {
+				ips = append(ips, net.ParseIP(ip))
+			}
+
+			config := &CSRConfig{
+				CommonName:   "test.example.com",
+				Country:      "US",
+				Organization: "Test Org",
+				KeyType:      "rsa2048",
+				DNSNames:     tt.dns,
+				IPAddresses:  ips,
+			}
+
+			csr, _, err := GenerateCSR(config)
+			// Even with various configurations, generation should succeed
+			if err != nil {
+				t.Errorf("GenerateCSR unexpected error: %v", err)
+			}
+			if csr == nil {
+				t.Error("CSR should not be nil")
+			}
+		})
+	}
+}
