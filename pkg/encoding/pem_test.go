@@ -687,3 +687,166 @@ func TestEncodeCertificateChainToPEMMultipleCerts(t *testing.T) {
 		t.Errorf("Expected 2 certificates in chain, got %d", len(decodedChain))
 	}
 }
+
+func TestDecodeCertificateFromPEMWrongBlockType(t *testing.T) {
+	// Create a valid PEM but with wrong block type
+	key, err := cert.GeneratePrivateKey(cert.KeyTypeRSA2048)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+
+	keyPEM, err := EncodePrivateKeyToPEM(key)
+	if err != nil {
+		t.Fatalf("Failed to encode key: %v", err)
+	}
+
+	// Try to decode as certificate (wrong type)
+	cert, err := DecodeCertificateFromPEM(keyPEM)
+	if err == nil {
+		t.Fatal("Expected error for wrong PEM block type")
+	}
+
+	if cert != nil {
+		t.Error("Expected nil certificate for wrong block type")
+	}
+}
+
+func TestDecodePrivateKeyFromPEMWrongBlockType(t *testing.T) {
+	// Create a valid certificate PEM
+	config := &cert.CertificateConfig{
+		CommonName: "test.example.com",
+		KeyType:    cert.KeyTypeRSA2048,
+		Validity:   365,
+	}
+
+	certificate, _, err := cert.GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("Failed to generate certificate: %v", err)
+	}
+
+	certPEM, err := EncodeCertificateToPEM(certificate)
+	if err != nil {
+		t.Fatalf("Failed to encode certificate: %v", err)
+	}
+
+	// Try to decode certificate as private key (wrong type)
+	key, err := DecodePrivateKeyFromPEM(certPEM)
+	if err == nil {
+		t.Fatal("Expected error for wrong PEM block type")
+	}
+
+	if key != nil {
+		t.Error("Expected nil key for wrong block type")
+	}
+}
+
+func TestDecodeCSRFromPEMWrongBlockType(t *testing.T) {
+	// Create a valid certificate PEM
+	config := &cert.CertificateConfig{
+		CommonName: "test.example.com",
+		KeyType:    cert.KeyTypeRSA2048,
+		Validity:   365,
+	}
+
+	certificate, _, err := cert.GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("Failed to generate certificate: %v", err)
+	}
+
+	certPEM, err := EncodeCertificateToPEM(certificate)
+	if err != nil {
+		t.Fatalf("Failed to encode certificate: %v", err)
+	}
+
+	// Try to decode certificate as CSR (wrong type)
+	csr, err := DecodeCSRFromPEM(certPEM)
+	if err == nil {
+		t.Fatal("Expected error for wrong PEM block type")
+	}
+
+	if csr != nil {
+		t.Error("Expected nil CSR for wrong block type")
+	}
+}
+
+func TestDecodeCertificateFromPEMEmptyData(t *testing.T) {
+	cert, err := DecodeCertificateFromPEM([]byte{})
+	if err == nil {
+		t.Fatal("Expected error for empty PEM data")
+	}
+
+	if cert != nil {
+		t.Error("Expected nil certificate for empty data")
+	}
+}
+
+func TestDecodePrivateKeyFromPEMEmptyData(t *testing.T) {
+	key, err := DecodePrivateKeyFromPEM([]byte{})
+	if err == nil {
+		t.Fatal("Expected error for empty PEM data")
+	}
+
+	if key != nil {
+		t.Error("Expected nil key for empty data")
+	}
+}
+
+func TestDecodeCSRFromPEMEmptyData(t *testing.T) {
+	csr, err := DecodeCSRFromPEM([]byte{})
+	if err == nil {
+		t.Fatal("Expected error for empty PEM data")
+	}
+
+	if csr != nil {
+		t.Error("Expected nil CSR for empty data")
+	}
+}
+
+func TestDecodeCertificateChainFromPEMNoValidCerts(t *testing.T) {
+	// Try to decode a PEM with invalid certificate data
+	invalidPEM := []byte("-----BEGIN CERTIFICATE-----\ninvalid\n-----END CERTIFICATE-----")
+
+	chain, err := DecodeCertificateChainFromPEM(invalidPEM)
+	if err == nil {
+		t.Fatal("Expected error for invalid certificate in chain")
+	}
+
+	if chain != nil {
+		t.Error("Expected nil chain for invalid certificate data")
+	}
+}
+
+func TestEncodeCertificateChainToPEMWithNilCerts(t *testing.T) {
+	// Create one valid and one nil certificate
+	config := &cert.CertificateConfig{
+		CommonName: "test.example.com",
+		KeyType:    cert.KeyTypeRSA2048,
+		Validity:   365,
+	}
+
+	certificate, _, err := cert.GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("Failed to generate certificate: %v", err)
+	}
+
+	// Call with one valid cert and one nil (should skip nil)
+	chainPEM, err := EncodeCertificateChainToPEM(certificate, nil, certificate)
+	if err != nil {
+		t.Fatalf("Failed to encode chain with nil cert: %v", err)
+	}
+
+	if len(chainPEM) == 0 {
+		t.Fatal("Chain PEM should not be empty")
+	}
+
+	// Verify it can be decoded back
+	decodedChain, err := DecodeCertificateChainFromPEM(chainPEM)
+	if err != nil {
+		t.Fatalf("Failed to decode chain: %v", err)
+	}
+
+	// Should have 2 certificates (nil is skipped)
+	if len(decodedChain) != 2 {
+		t.Errorf("Expected 2 certificates in chain (nil skipped), got %d", len(decodedChain))
+	}
+}
