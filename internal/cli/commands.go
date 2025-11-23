@@ -13,9 +13,9 @@ import (
 	"github.com/0x524a/certifier/pkg/encoding"
 )
 
-// GenerateCA generates a CA certificate
-func GenerateCA(args []string) {
-	cmd := flag.NewFlagSet("ca generate", flag.ExitOnError)
+// GenerateCACmd generates a CA certificate and returns an error instead of exiting
+func GenerateCACmd(args []string) error {
+	cmd := flag.NewFlagSet("ca generate", flag.ContinueOnError)
 	cn := cmd.String("cn", "", "Common Name (required)")
 	country := cmd.String("country", "US", "Country")
 	org := cmd.String("org", "", "Organization")
@@ -29,8 +29,7 @@ func GenerateCA(args []string) {
 	nonInteractive := cmd.Bool("non-interactive", false, "Enable non-interactive mode (requires --cn)")
 
 	if err := cmd.Parse(args); err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error parsing flags: %w", err)
 	}
 
 	// Use interactive mode by default if no CN provided and not explicitly non-interactive
@@ -46,8 +45,7 @@ func GenerateCA(args []string) {
 		// Get subject information
 		subject := im.PromptSubjectInfo()
 		if subject["commonName"] == "" {
-			fmt.Fprintf(os.Stderr, "Error: Common Name is required\n")
-			os.Exit(1)
+			return fmt.Errorf("common Name is required")
 		}
 
 		// Get key type
@@ -61,7 +59,7 @@ func GenerateCA(args []string) {
 		keyOut := im.PromptFileOutput("ca.key")
 
 		// Create config
-		config := &cert.CertificateConfig{
+		certConfig := &cert.CertificateConfig{
 			CommonName:         subject["commonName"],
 			Country:            subject["country"],
 			Organization:       subject["organization"],
@@ -76,45 +74,40 @@ func GenerateCA(args []string) {
 
 		// Display summary
 		summary := map[string]interface{}{
-			"Common Name":      config.CommonName,
-			"Organization":     config.Organization,
-			"Key Type":         string(config.KeyType),
-			"Validity":         fmt.Sprintf("%d days", config.Validity),
+			"Common Name":      certConfig.CommonName,
+			"Organization":     certConfig.Organization,
+			"Key Type":         string(certConfig.KeyType),
+			"Validity":         fmt.Sprintf("%d days", certConfig.Validity),
 			"Certificate Type": "CA",
 		}
 		SummaryTable(summary)
 
 		if !im.ConfirmGeneration() {
 			fmt.Println("CA generation cancelled.")
-			os.Exit(0)
+			return nil
 		}
 
-		certificate, privateKey, err := cert.GenerateSelfSignedCertificate(config)
+		certificate, privateKey, err := cert.GenerateSelfSignedCertificate(certConfig)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error generating CA certificate: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error generating CA certificate: %w", err)
 		}
 
 		certPEM, err := encoding.EncodeCertificateToPEM(certificate)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error encoding certificate: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error encoding certificate: %w", err)
 		}
 
 		keyPEM, err := encoding.EncodePrivateKeyToPEM(privateKey)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error encoding private key: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error encoding private key: %w", err)
 		}
 
 		if err := os.WriteFile(certOut, certPEM, 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing certificate file: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error writing certificate file: %w", err)
 		}
 
 		if err := os.WriteFile(keyOut, keyPEM, 0600); err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing key file: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error writing key file: %w", err)
 		}
 
 		fmt.Printf("CA Certificate generated successfully!\n")
@@ -123,15 +116,14 @@ func GenerateCA(args []string) {
 		fmt.Printf("Serial Number: %s\n", certificate.SerialNumber)
 		fmt.Printf("Valid From: %s\n", certificate.NotBefore)
 		fmt.Printf("Valid Until: %s\n", certificate.NotAfter)
-		return
+		return nil
 	}
 
 	if *cn == "" {
-		fmt.Fprintf(os.Stderr, "Error: Common Name (--cn) is required for non-interactive mode\n")
-		os.Exit(1)
+		return fmt.Errorf("common Name (--cn) is required for non-interactive mode")
 	}
 
-	config := &cert.CertificateConfig{
+	certConfig := &cert.CertificateConfig{
 		CommonName:         *cn,
 		Country:            *country,
 		Organization:       *org,
@@ -144,32 +136,27 @@ func GenerateCA(args []string) {
 		MaxPathLength:      -1,
 	}
 
-	certificate, privateKey, err := cert.GenerateSelfSignedCertificate(config)
+	certificate, privateKey, err := cert.GenerateSelfSignedCertificate(certConfig)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error generating CA certificate: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error generating CA certificate: %w", err)
 	}
 
 	certPEM, err := encoding.EncodeCertificateToPEM(certificate)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding certificate: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error encoding certificate: %w", err)
 	}
 
 	keyPEM, err := encoding.EncodePrivateKeyToPEM(privateKey)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding private key: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error encoding private key: %w", err)
 	}
 
 	if err := os.WriteFile(*certOutput, certPEM, 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing certificate file: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error writing certificate file: %w", err)
 	}
 
 	if err := os.WriteFile(*keyOutput, keyPEM, 0600); err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing key file: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error writing key file: %w", err)
 	}
 
 	fmt.Printf("CA Certificate generated successfully!\n")
@@ -178,6 +165,15 @@ func GenerateCA(args []string) {
 	fmt.Printf("Serial Number: %s\n", certificate.SerialNumber)
 	fmt.Printf("Valid From: %s\n", certificate.NotBefore)
 	fmt.Printf("Valid Until: %s\n", certificate.NotAfter)
+	return nil
+}
+
+// GenerateCA generates a CA certificate (wrapper that calls GenerateCACmd and handles exit)
+func GenerateCA(args []string) {
+	if err := GenerateCACmd(args); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 // GenerateCert generates a certificate
