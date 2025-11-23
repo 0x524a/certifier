@@ -9,12 +9,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@a5ac7e51b41094c75462b469e6e1a4413fcf3562
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
         with:
           fetch-depth: 2
 
       - name: Set up Go
-        uses: actions/setup-go@41dfa500b0f3012ba46f61f27c5a910bea2c18ec
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
 
       - name: Install dependencies
         run: go mod download
