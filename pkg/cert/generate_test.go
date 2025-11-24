@@ -1232,3 +1232,140 @@ func TestGenerateCAWithPathLengthZero(t *testing.T) {
 		t.Errorf("Expected max path length 0, got %d", cert.MaxPathLen)
 	}
 }
+
+// TestGenerateCertificateClientTypeOnlyExtKeyUsage tests client type cert gets correct EKU
+func TestGenerateCertificateClientTypeOnlyExtKeyUsage(t *testing.T) {
+	config := &CertificateConfig{
+		CommonName: "client.example.com",
+		KeyType:    "rsa2048",
+		Validity:   365,
+		CertType:   "client",
+	}
+
+	cert, key, err := GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("Failed to generate client cert: %v", err)
+	}
+
+	if cert == nil || key == nil {
+		t.Fatal("Expected valid cert and key")
+	}
+
+	// Verify ExtKeyUsage includes ClientAuth
+	hasClientAuth := false
+	for _, eku := range cert.ExtKeyUsage {
+		if eku == x509.ExtKeyUsageClientAuth {
+			hasClientAuth = true
+			break
+		}
+	}
+
+	if !hasClientAuth {
+		t.Error("Expected ClientAuth in ExtKeyUsage for client cert")
+	}
+}
+
+// TestGenerateCertificateServerTypeExtKeyUsage tests server type cert gets correct EKU
+func TestGenerateCertificateServerTypeExtKeyUsage(t *testing.T) {
+	config := &CertificateConfig{
+		CommonName: "server.example.com",
+		KeyType:    "rsa2048",
+		Validity:   365,
+		CertType:   "server",
+	}
+
+	cert, key, err := GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("Failed to generate server cert: %v", err)
+	}
+
+	if cert == nil || key == nil {
+		t.Fatal("Expected valid cert and key")
+	}
+
+	// Verify ExtKeyUsage includes ServerAuth
+	hasServerAuth := false
+	for _, eku := range cert.ExtKeyUsage {
+		if eku == x509.ExtKeyUsageServerAuth {
+			hasServerAuth = true
+			break
+		}
+	}
+
+	if !hasServerAuth {
+		t.Error("Expected ServerAuth in ExtKeyUsage for server cert")
+	}
+}
+
+// TestGenerateCertificateBothTypeExtKeyUsage tests both type cert gets correct EKU
+func TestGenerateCertificateBothTypeExtKeyUsage(t *testing.T) {
+	config := &CertificateConfig{
+		CommonName: "both.example.com",
+		KeyType:    "rsa2048",
+		Validity:   365,
+		CertType:   "both",
+	}
+
+	cert, key, err := GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("Failed to generate both cert: %v", err)
+	}
+
+	if cert == nil || key == nil {
+		t.Fatal("Expected valid cert and key")
+	}
+
+	// Verify ExtKeyUsage includes both ServerAuth and ClientAuth
+	hasServerAuth := false
+	hasClientAuth := false
+	for _, eku := range cert.ExtKeyUsage {
+		if eku == x509.ExtKeyUsageServerAuth {
+			hasServerAuth = true
+		}
+		if eku == x509.ExtKeyUsageClientAuth {
+			hasClientAuth = true
+		}
+	}
+
+	if !hasServerAuth || !hasClientAuth {
+		t.Error("Expected both ServerAuth and ClientAuth in ExtKeyUsage for both cert")
+	}
+}
+
+// TestGenerateCASignedCertificateWithMixedKeyTypes tests CA and cert with different key types
+func TestGenerateCASignedCertificateWithMixedKeyTypes(t *testing.T) {
+	// Create ECDSA CA
+	caConfig := &CertificateConfig{
+		CommonName:    "ECDSA CA",
+		IsCA:          true,
+		MaxPathLength: 1,
+		Validity:      3650,
+		KeyType:       "ecdsa-p256",
+	}
+
+	caCert, caKey, err := GenerateSelfSignedCertificate(caConfig)
+	if err != nil {
+		t.Fatalf("Failed to create ECDSA CA: %v", err)
+	}
+
+	// Create RSA certificate signed by ECDSA CA
+	certConfig := &CertificateConfig{
+		CommonName: "rsa-cert.example.com",
+		KeyType:    "rsa2048",
+		Validity:   365,
+	}
+
+	cert, key, err := GenerateCASignedCertificate(certConfig, caConfig, caKey, caCert)
+	if err != nil {
+		t.Fatalf("Failed to create RSA cert signed by ECDSA CA: %v", err)
+	}
+
+	if cert == nil || key == nil {
+		t.Fatal("Expected valid cert and key")
+	}
+
+	// Verify issuer is the ECDSA CA
+	if cert.Issuer.CommonName != caCert.Subject.CommonName {
+		t.Errorf("Expected issuer %s, got %s", caCert.Subject.CommonName, cert.Issuer.CommonName)
+	}
+}
