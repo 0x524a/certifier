@@ -1,8 +1,11 @@
 name: SonarQube Scan
 
 on:
-  push:
-    branches: [ main, develop ]
+  workflow_run:
+    workflows: ["Run tests and upload coverage"]
+    types:
+      - completed
+    branches: [main, develop]
   pull_request:
     branches: [ main, develop ]
 
@@ -10,6 +13,7 @@ jobs:
   sonarqube:
     name: SonarQube Scan
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
         with:
