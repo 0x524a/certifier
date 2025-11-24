@@ -1109,10 +1109,10 @@ func TestGenerateCertificateWithPresetExtKeyUsage(t *testing.T) {
 // TestGenerateCertificateWithCRLDistributionPoints tests cert with CRL URLs
 func TestGenerateCertificateWithCRLDistributionPoints(t *testing.T) {
 	config := &CertificateConfig{
-		CommonName:              "crl.example.com",
-		KeyType:                 "rsa2048",
-		Validity:                365,
-		CRLDistributionPoints:   []string{"http://example.com/crl1", "http://example.com/crl2"},
+		CommonName:            "crl.example.com",
+		KeyType:               "rsa2048",
+		Validity:              365,
+		CRLDistributionPoints: []string{"http://example.com/crl1", "http://example.com/crl2"},
 	}
 
 	cert, key, err := GenerateSelfSignedCertificate(config)
