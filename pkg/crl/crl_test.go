@@ -541,3 +541,41 @@ func TestSimpleSignerPublicWithPublicKeyMethod(t *testing.T) {
 		t.Errorf("Expected non-nil public key from RSA key")
 	}
 }
+
+func TestSimpleSignerPublicWithECDSAKey(t *testing.T) {
+	// Test Public() method with ECDSA key
+	caCfg := &cert.CertificateConfig{
+		CommonName:    "Test CA ECDSA",
+		Organization:  "Test Org",
+		IsCA:          true,
+		MaxPathLength: -1,
+		Validity:      365,
+		KeyType:       "ecdsa-p256",
+	}
+
+	_, ecdsaKey, err := cert.GenerateSelfSignedCertificate(caCfg)
+	if err != nil {
+		t.Fatalf("Failed to generate ECDSA CA: %v", err)
+	}
+
+	signer := &simpleSigner{pk: ecdsaKey}
+	pubKey := signer.Public()
+
+	if pubKey == nil {
+		t.Errorf("Expected non-nil public key from ECDSA key")
+	}
+}
+
+func TestSimpleSignerPublicWithUnsupportedKey(t *testing.T) {
+	// Test Public() method with unsupported key type that doesn't have Public() method
+	type unsupportedKey struct {
+		data string
+	}
+
+	signer := &simpleSigner{pk: unsupportedKey{data: "test"}}
+	pubKey := signer.Public()
+
+	if pubKey != nil {
+		t.Errorf("Expected nil public key for unsupported key type")
+	}
+}
