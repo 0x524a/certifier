@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -996,6 +998,189 @@ func TestGenerateCertCmdWithOnlyIPAddresses(t *testing.T) {
 	}
 
 	// View it to cover the IP display path
+	err = ViewCertificateDetailsCmd(certPath)
+	if err != nil {
+		t.Errorf("ViewCertificateDetailsCmd failed: %v", err)
+	}
+}
+
+// TestGenerateCACmdWithPathLength tests CA generation with path length constraint
+func TestGenerateCACmdWithPathLength(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := GenerateCACmd([]string{
+		"--cn", "Intermediate CA",
+		"--org", "Test Organization",
+		"--non-interactive",
+		"--output", filepath.Join(tmpDir, "intermediate-ca.crt"),
+		"--key-output", filepath.Join(tmpDir, "intermediate-ca.key"),
+	})
+
+	if err != nil {
+		t.Errorf("GenerateCACmd failed: %v", err)
+	}
+}
+
+// TestGenerateCertCmdWithBothServerAndClient tests both cert type
+func TestGenerateCertCmdWithBothServerAndClient(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := GenerateCertCmd([]string{
+		"--cn", "dual.example.com",
+		"--cert-type", "both",
+		"--output", filepath.Join(tmpDir, "dual.crt"),
+		"--key-output", filepath.Join(tmpDir, "dual.key"),
+		"--non-interactive",
+	})
+
+	if err != nil {
+		t.Errorf("GenerateCertCmd with both type failed: %v", err)
+	}
+}
+
+// TestGenerateCSRCmdWithLongDNSList tests CSR with many DNS names
+func TestGenerateCSRCmdWithLongDNSList(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	dnsNames := make([]string, 20)
+	for i := 0; i < 20; i++ {
+		dnsNames[i] = fmt.Sprintf("host%d.example.com", i)
+	}
+
+	err := GenerateCSRCmd([]string{
+		"--cn", "many-dns.example.com",
+		"--dns", strings.Join(dnsNames, ","),
+		"--output", filepath.Join(tmpDir, "many-dns.csr"),
+		"--key-output", filepath.Join(tmpDir, "many-dns.key"),
+		"--non-interactive",
+	})
+
+	if err != nil {
+		t.Errorf("GenerateCSRCmd with many DNS names failed: %v", err)
+	}
+}
+
+// TestGenerateCertFromFileCmdWithEmptyConfig tests batch generation with empty config
+func TestGenerateCertFromFileCmdWithEmptyConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "empty.yaml")
+
+	configContent := `certificates: []`
+
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	err := GenerateCertFromFileCmd(configPath)
+	// Should fail with empty config
+	if err == nil {
+		t.Errorf("Expected error for empty config, got nil")
+	}
+}
+
+// TestGenerateCSRFromFileCmdWithEmptyConfig tests CSR batch with empty config
+func TestGenerateCSRFromFileCmdWithEmptyConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "empty-csr.yaml")
+
+	configContent := `certificates: []`
+
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	err := GenerateCSRFromFileCmd(configPath)
+	// Should fail with empty config
+	if err == nil {
+		t.Errorf("Expected error for empty config, got nil")
+	}
+}
+
+// TestGenerateCertCmdWithRSAPSSSignature tests certificate with RSA-PSS
+func TestGenerateCertCmdWithRSAPSSSignature(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := GenerateCertCmd([]string{
+		"--cn", "pss.example.com",
+		"--key-type", "rsa4096",
+		"--output", filepath.Join(tmpDir, "pss.crt"),
+		"--key-output", filepath.Join(tmpDir, "pss.key"),
+		"--non-interactive",
+	})
+
+	if err != nil {
+		t.Errorf("GenerateCertCmd with RSA4096 failed: %v", err)
+	}
+}
+
+// TestGenerateCACmdWithAllSubjectFieldsFilled tests CA with complete subject info
+func TestGenerateCACmdWithAllSubjectFieldsFilled(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := GenerateCACmd([]string{
+		"--cn", "Complete Subject CA",
+		"--org", "Full Organization",
+		"--ou", "Security Department",
+		"--locality", "New York",
+		"--province", "NY",
+		"--country", "US",
+		"--validity", "7300",
+		"--key-type", "ecdsa-p384",
+		"--non-interactive",
+		"--output", filepath.Join(tmpDir, "full-subject-ca.crt"),
+		"--key-output", filepath.Join(tmpDir, "full-subject-ca.key"),
+	})
+
+	if err != nil {
+		t.Errorf("GenerateCACmd with all subject fields failed: %v", err)
+	}
+}
+
+// TestGenerateCSRCmdWithSubjectFields tests CSR with all subject fields
+func TestGenerateCSRCmdWithSubjectFields(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := GenerateCSRCmd([]string{
+		"--cn", "complete-subject.example.com",
+		"--org", "Complete Org",
+		"--country", "GB",
+		"--key-type", "ecdsa-p521",
+		"--dns", "www.complete.example.com,api.complete.example.com",
+		"--output", filepath.Join(tmpDir, "complete.csr"),
+		"--key-output", filepath.Join(tmpDir, "complete.key"),
+		"--non-interactive",
+	})
+
+	if err != nil {
+		t.Errorf("GenerateCSRCmd with all subject fields failed: %v", err)
+	}
+}
+
+// TestViewCertificateDetailsCmdWithComplexCert tests viewing a cert with all fields
+func TestViewCertificateDetailsCmdWithComplexCert(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Generate a complex certificate
+	certPath := filepath.Join(tmpDir, "complex.crt")
+	keyPath := filepath.Join(tmpDir, "complex.key")
+
+	err := GenerateCertCmd([]string{
+		"--cn", "complex.example.com",
+		"--org", "Complex Org",
+		"--dns", "www.complex.example.com,api.complex.example.com,admin.complex.example.com",
+		"--ip", "192.168.1.1,10.0.0.1,::1",
+		"--ext-oid", "1.3.6.1.5.5.7.3.1,1.3.6.1.5.5.7.3.2,2.5.29.37.0",
+		"--cert-type", "both",
+		"--output", certPath,
+		"--key-output", keyPath,
+		"--non-interactive",
+	})
+
+	if err != nil {
+		t.Fatalf("Failed to generate complex certificate: %v", err)
+	}
+
+	// View to cover all display paths
 	err = ViewCertificateDetailsCmd(certPath)
 	if err != nil {
 		t.Errorf("ViewCertificateDetailsCmd failed: %v", err)
