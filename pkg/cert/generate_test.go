@@ -792,3 +792,247 @@ func TestGenerateCSRWithInvalidExtendedKeyUsageFormat(t *testing.T) {
 		})
 	}
 }
+
+// TestGenerateSelfSignedCertificateWithNilConfig tests error handling for nil config
+func TestGenerateSelfSignedCertificateWithNilConfig(t *testing.T) {
+	cert, key, err := GenerateSelfSignedCertificate(nil)
+	if err == nil {
+		t.Error("Expected error for nil config")
+	}
+	if cert != nil || key != nil {
+		t.Error("Expected nil cert and key for nil config")
+	}
+}
+
+// TestGenerateCASignedCertificateWithNilConfig tests error handling for nil cert config
+func TestGenerateCASignedCertificateWithNilConfig(t *testing.T) {
+	caConfig := &CertificateConfig{
+		CommonName: "Test CA",
+		IsCA:       true,
+		KeyType:    "rsa2048",
+		Validity:   365,
+	}
+	caCert, caKey, _ := GenerateSelfSignedCertificate(caConfig)
+
+	cert, key, err := GenerateCASignedCertificate(nil, caConfig, caKey, caCert)
+	if err == nil {
+		t.Error("Expected error for nil cert config")
+	}
+	if cert != nil || key != nil {
+		t.Error("Expected nil cert and key for nil config")
+	}
+}
+
+// TestGenerateCASignedCertificateWithNilCAKey tests error handling for nil CA key
+func TestGenerateCASignedCertificateWithNilCAKey(t *testing.T) {
+	caConfig := &CertificateConfig{
+		CommonName: "Test CA",
+		IsCA:       true,
+		KeyType:    "rsa2048",
+		Validity:   365,
+	}
+	caCert, _, _ := GenerateSelfSignedCertificate(caConfig)
+
+	certConfig := &CertificateConfig{
+		CommonName: "test.example.com",
+		KeyType:    "rsa2048",
+		Validity:   365,
+	}
+
+	cert, key, err := GenerateCASignedCertificate(certConfig, caConfig, nil, caCert)
+	if err == nil {
+		t.Error("Expected error for nil CA private key")
+	}
+	if cert != nil || key != nil {
+		t.Error("Expected nil cert and key for nil CA key")
+	}
+}
+
+// TestGenerateCASignedCertificateWithNilCACert tests error handling for nil CA cert
+func TestGenerateCASignedCertificateWithNilCACert(t *testing.T) {
+	caConfig := &CertificateConfig{
+		CommonName: "Test CA",
+		IsCA:       true,
+		KeyType:    "rsa2048",
+		Validity:   365,
+	}
+	_, caKey, _ := GenerateSelfSignedCertificate(caConfig)
+
+	certConfig := &CertificateConfig{
+		CommonName: "test.example.com",
+		KeyType:    "rsa2048",
+		Validity:   365,
+	}
+
+	cert, key, err := GenerateCASignedCertificate(certConfig, caConfig, caKey, nil)
+	if err == nil {
+		t.Error("Expected error for nil CA certificate")
+	}
+	if cert != nil || key != nil {
+		t.Error("Expected nil cert and key for nil CA cert")
+	}
+}
+
+// TestGenerateCSRWithNilConfig tests error handling for nil CSR config
+func TestGenerateCSRWithNilConfig(t *testing.T) {
+	csr, key, err := GenerateCSR(nil)
+	if err == nil {
+		t.Error("Expected error for nil CSR config")
+	}
+	if csr != nil || key != nil {
+		t.Error("Expected nil CSR and key for nil config")
+	}
+}
+
+// TestGenerateSelfSignedCertificateWithEmptyCommonName tests error handling for empty CN
+func TestGenerateSelfSignedCertificateWithEmptyCommonName(t *testing.T) {
+	config := &CertificateConfig{
+		CommonName: "",
+		KeyType:    "rsa2048",
+		Validity:   365,
+	}
+
+	cert, key, err := GenerateSelfSignedCertificate(config)
+	if err == nil {
+		t.Error("Expected error for empty common name")
+	}
+	if cert != nil || key != nil {
+		t.Error("Expected nil cert and key for empty CN")
+	}
+}
+
+// TestGenerateCSRWithEmptyCommonName tests error handling for empty CN in CSR
+func TestGenerateCSRWithEmptyCommonName(t *testing.T) {
+	config := &CSRConfig{
+		CommonName: "",
+		KeyType:    "rsa2048",
+	}
+
+	csr, key, err := GenerateCSR(config)
+	if err == nil {
+		t.Error("Expected error for empty common name")
+	}
+	if csr != nil || key != nil {
+		t.Error("Expected nil CSR and key for empty CN")
+	}
+}
+
+// TestGenerateSelfSignedCertificateWithZeroValidity tests certificate with zero validity
+func TestGenerateSelfSignedCertificateWithZeroValidity(t *testing.T) {
+	config := &CertificateConfig{
+		CommonName: "test.example.com",
+		KeyType:    "rsa2048",
+		Validity:   0, // Will use default 365 days
+	}
+
+	cert, key, err := GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if cert == nil || key == nil {
+		t.Error("Expected valid cert and key")
+	}
+}
+
+// TestGenerateCASignedCertificateWithCASignature tests CA-signed cert signature
+func TestGenerateCASignedCertificateWithCASignature(t *testing.T) {
+	// Create CA
+	caConfig := &CertificateConfig{
+		CommonName:    "Root CA",
+		Organization:  "Test Org",
+		IsCA:          true,
+		MaxPathLength: 1,
+		Validity:      3650,
+		KeyType:       "ecdsa-p256",
+	}
+
+	caCert, caKey, err := GenerateSelfSignedCertificate(caConfig)
+	if err != nil {
+		t.Fatalf("Failed to create CA: %v", err)
+	}
+
+	// Create certificate signed by CA
+	certConfig := &CertificateConfig{
+		CommonName:   "server.example.com",
+		Organization: "Test Org",
+		DNSNames:     []string{"www.example.com", "api.example.com"},
+		Validity:     365,
+		KeyType:      "ecdsa-p256",
+		CertType:     "server",
+	}
+
+	cert, key, err := GenerateCASignedCertificate(certConfig, caConfig, caKey, caCert)
+	if err != nil {
+		t.Fatalf("Failed to create CA-signed certificate: %v", err)
+	}
+
+	if cert == nil || key == nil {
+		t.Fatal("Expected valid certificate and key")
+	}
+
+	// Verify issuer matches CA subject
+	if cert.Issuer.CommonName != caCert.Subject.CommonName {
+		t.Errorf("Expected issuer %s, got %s", caCert.Subject.CommonName, cert.Issuer.CommonName)
+	}
+
+	// Verify cert is not a CA
+	if cert.IsCA {
+		t.Error("Expected non-CA certificate")
+	}
+}
+
+// TestGenerateCASignedCertificateWithIntermediateCA tests intermediate CA creation
+func TestGenerateCASignedCertificateWithIntermediateCA(t *testing.T) {
+	// Create Root CA
+	rootConfig := &CertificateConfig{
+		CommonName:    "Root CA",
+		IsCA:          true,
+		MaxPathLength: 2,
+		Validity:      7300,
+		KeyType:       "rsa4096",
+	}
+
+	rootCert, rootKey, err := GenerateSelfSignedCertificate(rootConfig)
+	if err != nil {
+		t.Fatalf("Failed to create root CA: %v", err)
+	}
+
+	// Create Intermediate CA signed by root
+	intermediateConfig := &CertificateConfig{
+		CommonName:    "Intermediate CA",
+		IsCA:          true,
+		MaxPathLength: 0,
+		Validity:      3650,
+		KeyType:       "rsa2048",
+	}
+
+	intermediateCert, intermediateKey, err := GenerateCASignedCertificate(intermediateConfig, rootConfig, rootKey, rootCert)
+	if err != nil {
+		t.Fatalf("Failed to create intermediate CA: %v", err)
+	}
+
+	if !intermediateCert.IsCA {
+		t.Error("Expected intermediate to be a CA")
+	}
+
+	// Verify intermediate is signed by root
+	if intermediateCert.Issuer.CommonName != rootCert.Subject.CommonName {
+		t.Errorf("Expected issuer to be root CA")
+	}
+
+	// Now create a leaf cert signed by intermediate
+	leafConfig := &CertificateConfig{
+		CommonName: "leaf.example.com",
+		Validity:   365,
+		KeyType:    "rsa2048",
+	}
+
+	leafCert, _, err := GenerateCASignedCertificate(leafConfig, intermediateConfig, intermediateKey, intermediateCert)
+	if err != nil {
+		t.Fatalf("Failed to create leaf certificate: %v", err)
+	}
+
+	if leafCert.IsCA {
+		t.Error("Expected leaf to not be a CA")
+	}
+}
