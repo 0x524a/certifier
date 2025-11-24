@@ -646,3 +646,197 @@ func TestViewCertificateDetailsCmdWithInvalidFile(t *testing.T) {
 		t.Errorf("Expected error for invalid certificate content, got nil")
 	}
 }
+
+// TestGenerateCertFromFileCmdWithCSRInConfig tests GenerateCertFromFileCmd with CSR entries
+func TestGenerateCertFromFileCmdWithCSRInConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "mixed-config.yaml")
+	
+	// Config with both certificate and CSR
+	configContent := `certificates:
+  - commonName: test-cert.example.com
+    organization: Test Org
+    country: US
+    isCA: false
+    isCSR: false
+    validity: 365
+    keyType: rsa2048
+    certificateOutputFile: test.crt
+    privateKeyOutputFile: test.key
+  - commonName: test-csr.example.com
+    organization: Test Org
+    country: US
+    isCSR: true
+    keyType: ecdsa-p256
+    csrOutputFile: test.csr
+    privateKeyOutputFile: test-csr.key
+`
+
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	outDir := filepath.Join(tmpDir, "output")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+
+	oldCwd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldCwd) }()
+	if err := os.Chdir(outDir); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	err := GenerateCertFromFileCmd(configPath)
+	if err != nil {
+		t.Errorf("GenerateCertFromFileCmd with mixed config failed: %v", err)
+	}
+
+	// Verify cert file was created
+	certFile := filepath.Join(outDir, "test.crt")
+	if _, err := os.Stat(certFile); os.IsNotExist(err) {
+		t.Errorf("Certificate file not created")
+	}
+
+	// Verify CSR file was created
+	csrFile := filepath.Join(outDir, "test.csr")
+	if _, err := os.Stat(csrFile); os.IsNotExist(err) {
+		t.Errorf("CSR file not created")
+	}
+}
+
+// TestGenerateCertFromFileCmdWithCAEntry tests GenerateCertFromFileCmd with CA certificate
+func TestGenerateCertFromFileCmdWithCAEntry(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "ca-in-file.yaml")
+	
+	configContent := `certificates:
+  - commonName: Test Root CA
+    organization: Test Org
+    country: US
+    isCA: true
+    validity: 3650
+    keyType: rsa2048
+    certificateOutputFile: root-ca.crt
+    privateKeyOutputFile: root-ca.key
+`
+
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	outDir := filepath.Join(tmpDir, "output")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+
+	oldCwd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldCwd) }()
+	if err := os.Chdir(outDir); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	err := GenerateCertFromFileCmd(configPath)
+	if err != nil {
+		t.Errorf("GenerateCertFromFileCmd with CA failed: %v", err)
+	}
+
+	// Verify CA cert file was created
+	caFile := filepath.Join(outDir, "root-ca.crt")
+	if _, err := os.Stat(caFile); os.IsNotExist(err) {
+		t.Errorf("CA certificate file not created")
+	}
+}
+
+// TestGenerateCertCmdWithExtendedKeyUsageOIDs tests certificate with custom EKU OIDs
+func TestGenerateCertCmdWithExtendedKeyUsageOIDs(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := GenerateCertCmd([]string{
+		"--cn", "custom.example.com",
+		"--ext-oid", "1.3.6.1.5.5.7.3.1,1.3.6.1.5.5.7.3.2",
+		"--output", filepath.Join(tmpDir, "custom.crt"),
+		"--key-output", filepath.Join(tmpDir, "custom.key"),
+	})
+
+	if err != nil {
+		t.Errorf("GenerateCertCmd with extended key usage OIDs failed: %v", err)
+	}
+}
+
+// TestViewCertificateDetailsCmdWithValidCert tests viewing certificate details
+func TestViewCertificateDetailsCmdWithValidCert(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// First generate a certificate
+	certPath := filepath.Join(tmpDir, "view-test.crt")
+	keyPath := filepath.Join(tmpDir, "view-test.key")
+
+	err := GenerateCertCmd([]string{
+		"--cn", "view.example.com",
+		"--output", certPath,
+		"--key-output", keyPath,
+	})
+
+	if err != nil {
+		t.Fatalf("Failed to generate certificate: %v", err)
+	}
+
+	// Now test viewing it
+	err = ViewCertificateDetailsCmd(certPath)
+	if err != nil {
+		t.Errorf("ViewCertificateDetailsCmd failed: %v", err)
+	}
+}
+
+// TestGenerateCACmdWithAllSubjectFields tests CA generation with all subject fields
+func TestGenerateCACmdWithAllSubjectFields(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := GenerateCACmd([]string{
+		"--cn", "Complete CA",
+		"--org", "Test Organization",
+		"--ou", "Test Unit",
+		"--locality", "Test City",
+		"--province", "Test State",
+		"--country", "TS",
+		"--non-interactive",
+		"--output", filepath.Join(tmpDir, "complete-ca.crt"),
+		"--key-output", filepath.Join(tmpDir, "complete-ca.key"),
+	})
+
+	if err != nil {
+		t.Errorf("GenerateCACmd with all subject fields failed: %v", err)
+	}
+}
+
+// TestGenerateCACmdWithDifferentKeyTypes tests CA generation with various key algorithms
+func TestGenerateCACmdWithDifferentKeyTypes(t *testing.T) {
+	testCases := []struct {
+		name    string
+		keyType string
+	}{
+		{"RSA4096", "rsa4096"},
+		{"ECDSA-P256", "ecdsa-p256"},
+		{"ECDSA-P384", "ecdsa-p384"},
+		{"Ed25519", "ed25519"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+
+			err := GenerateCACmd([]string{
+				"--cn", "Test CA - " + tc.name,
+				"--key-type", tc.keyType,
+				"--non-interactive",
+				"--output", filepath.Join(tmpDir, "ca.crt"),
+				"--key-output", filepath.Join(tmpDir, "ca.key"),
+			})
+
+			if err != nil {
+				t.Errorf("GenerateCACmd with key type %s failed: %v", tc.keyType, err)
+			}
+		})
+	}
+}
