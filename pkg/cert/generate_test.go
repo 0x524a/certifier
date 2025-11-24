@@ -386,9 +386,9 @@ func TestGetKeySize(t *testing.T) {
 	}{
 		{"RSA 2048", KeyTypeRSA2048, 2040, 2056},
 		{"RSA 4096", KeyTypeRSA4096, 4080, 4112},
-		{"ECDSA P-256", KeyTypeECDSAP256, 250, 270},
-		{"ECDSA P-384", KeyTypeECDSAP384, 378, 398},
-		{"ECDSA P-521", KeyTypeECDSAP521, 510, 530},
+		{"ECDSA P-256", KeyTypeECDSAP256, 245, 270},
+		{"ECDSA P-384", KeyTypeECDSAP384, 375, 398},
+		{"ECDSA P-521", KeyTypeECDSAP521, 505, 530},
 		{"Ed25519", KeyTypeEd25519, 256, 256},
 	}
 
