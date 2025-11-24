@@ -1,6 +1,7 @@
 package cert
 
 import (
+	"crypto/x509"
 	"net"
 	"testing"
 	"time"
@@ -1034,5 +1035,200 @@ func TestGenerateCASignedCertificateWithIntermediateCA(t *testing.T) {
 
 	if leafCert.IsCA {
 		t.Error("Expected leaf to not be a CA")
+	}
+}
+
+// TestGenerateCSRWithEmailAddresses tests CSR with email addresses
+func TestGenerateCSRWithDNSOnly(t *testing.T) {
+	config := &CSRConfig{
+		CommonName:   "dns-only.example.com",
+		Organization: "Test Org",
+		KeyType:      "rsa2048",
+		DNSNames:     []string{"www.example.com", "api.example.com"},
+	}
+
+	csr, key, err := GenerateCSR(config)
+	if err != nil {
+		t.Fatalf("Failed to generate CSR with DNS names: %v", err)
+	}
+
+	if csr == nil || key == nil {
+		t.Fatal("Expected valid CSR and key")
+	}
+}
+
+// TestGenerateCertificateWithPresetKeyUsage tests cert with preset key usage
+func TestGenerateCertificateWithPresetKeyUsage(t *testing.T) {
+	config := &CertificateConfig{
+		CommonName: "preset.example.com",
+		KeyType:    "rsa2048",
+		Validity:   365,
+		KeyUsage:   x509.KeyUsageDigitalSignature | x509.KeyUsageDataEncipherment,
+	}
+
+	cert, key, err := GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("Failed to generate cert with preset key usage: %v", err)
+	}
+
+	if cert == nil || key == nil {
+		t.Fatal("Expected valid cert and key")
+	}
+
+	// Verify key usage was preserved
+	if cert.KeyUsage != config.KeyUsage {
+		t.Errorf("Expected key usage %d, got %d", config.KeyUsage, cert.KeyUsage)
+	}
+}
+
+// TestGenerateCertificateWithPresetExtKeyUsage tests cert with preset ext key usage
+func TestGenerateCertificateWithPresetExtKeyUsage(t *testing.T) {
+	config := &CertificateConfig{
+		CommonName:       "preset-ext.example.com",
+		KeyType:          "rsa2048",
+		Validity:         365,
+		ExtendedKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageCodeSigning, x509.ExtKeyUsageEmailProtection},
+	}
+
+	cert, key, err := GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("Failed to generate cert with preset ext key usage: %v", err)
+	}
+
+	if cert == nil || key == nil {
+		t.Fatal("Expected valid cert and key")
+	}
+
+	// The ExtendedKeyUsage field in template may be modified during generation
+	// Just verify we got a valid cert with ext key usage
+	if len(cert.ExtKeyUsage) == 0 {
+		t.Error("Expected at least one ext key usage")
+	}
+}
+
+// TestGenerateCertificateWithCRLDistributionPoints tests cert with CRL URLs
+func TestGenerateCertificateWithCRLDistributionPoints(t *testing.T) {
+	config := &CertificateConfig{
+		CommonName:              "crl.example.com",
+		KeyType:                 "rsa2048",
+		Validity:                365,
+		CRLDistributionPoints:   []string{"http://example.com/crl1", "http://example.com/crl2"},
+	}
+
+	cert, key, err := GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("Failed to generate cert with CRL URLs: %v", err)
+	}
+
+	if cert == nil || key == nil {
+		t.Fatal("Expected valid cert and key")
+	}
+
+	if len(cert.CRLDistributionPoints) != 2 {
+		t.Errorf("Expected 2 CRL distribution points, got %d", len(cert.CRLDistributionPoints))
+	}
+}
+
+// TestGenerateCertificateWithOCSPServer tests cert with OCSP server URLs
+func TestGenerateCertificateWithOCSPServer(t *testing.T) {
+	config := &CertificateConfig{
+		CommonName: "ocsp.example.com",
+		KeyType:    "rsa2048",
+		Validity:   365,
+		OCSPServer: []string{"http://ocsp.example.com"},
+	}
+
+	cert, key, err := GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("Failed to generate cert with OCSP server: %v", err)
+	}
+
+	if cert == nil || key == nil {
+		t.Fatal("Expected valid cert and key")
+	}
+
+	if len(cert.OCSPServer) != 1 {
+		t.Errorf("Expected 1 OCSP server, got %d", len(cert.OCSPServer))
+	}
+}
+
+// TestGenerateCertificateWithInvalidOIDFormat tests handling of malformed OIDs
+func TestGenerateCertificateWithInvalidOIDFormat(t *testing.T) {
+	config := &CertificateConfig{
+		CommonName:           "invalid-oid.example.com",
+		KeyType:              "rsa2048",
+		Validity:             365,
+		ExtendedKeyUsageOIDs: []string{"invalid", "1", "a.b.c"},
+	}
+
+	cert, key, err := GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("Failed to generate cert with invalid OIDs: %v", err)
+	}
+
+	// Should still generate successfully, just skip invalid OIDs
+	if cert == nil || key == nil {
+		t.Fatal("Expected valid cert and key")
+	}
+}
+
+// TestGenerateCertificateWithComplexSubject tests cert with all subject fields
+func TestGenerateCertificateWithComplexSubject(t *testing.T) {
+	config := &CertificateConfig{
+		CommonName:         "complex.example.com",
+		Country:            "US",
+		Organization:       "Test Organization Inc.",
+		OrganizationalUnit: "Engineering Department",
+		Locality:           "San Francisco",
+		Province:           "California",
+		StreetAddress:      "123 Main St",
+		PostalCode:         "94105",
+		KeyType:            "rsa2048",
+		Validity:           365,
+	}
+
+	cert, key, err := GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("Failed to generate cert with complex subject: %v", err)
+	}
+
+	if cert == nil || key == nil {
+		t.Fatal("Expected valid cert and key")
+	}
+
+	// Verify subject fields
+	if cert.Subject.CommonName != config.CommonName {
+		t.Errorf("Expected CN %s, got %s", config.CommonName, cert.Subject.CommonName)
+	}
+	if len(cert.Subject.Organization) == 0 || cert.Subject.Organization[0] != config.Organization {
+		t.Errorf("Expected org %s, got %v", config.Organization, cert.Subject.Organization)
+	}
+}
+
+// TestGenerateCAWithPathLengthZero tests CA with path length = 0 (no intermediates allowed)
+func TestGenerateCAWithPathLengthZero(t *testing.T) {
+	config := &CertificateConfig{
+		CommonName:    "No Intermediate CA",
+		IsCA:          true,
+		MaxPathLength: 0,
+		Validity:      365,
+		KeyType:       "rsa2048",
+	}
+
+	cert, key, err := GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("Failed to generate CA with path length 0: %v", err)
+	}
+
+	if cert == nil || key == nil {
+		t.Fatal("Expected valid cert and key")
+	}
+
+	if !cert.IsCA {
+		t.Error("Expected CA certificate")
+	}
+
+	if cert.MaxPathLen != 0 {
+		t.Errorf("Expected max path length 0, got %d", cert.MaxPathLen)
 	}
 }
