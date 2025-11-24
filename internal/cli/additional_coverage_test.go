@@ -651,7 +651,7 @@ func TestViewCertificateDetailsCmdWithInvalidFile(t *testing.T) {
 func TestGenerateCertFromFileCmdWithCSRInConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "mixed-config.yaml")
-	
+
 	// Config with both certificate and CSR
 	configContent := `certificates:
   - commonName: test-cert.example.com
@@ -709,7 +709,7 @@ func TestGenerateCertFromFileCmdWithCSRInConfig(t *testing.T) {
 func TestGenerateCertFromFileCmdWithCAEntry(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "ca-in-file.yaml")
-	
+
 	configContent := `certificates:
   - commonName: Test Root CA
     organization: Test Org
