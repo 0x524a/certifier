@@ -850,3 +850,69 @@ func TestEncodeCertificateChainToPEMWithNilCerts(t *testing.T) {
 		t.Errorf("Expected 2 certificates in chain (nil skipped), got %d", len(decodedChain))
 	}
 }
+
+// TestEncodePrivateKeyToPEMWithNilKey tests encoding nil private key
+func TestEncodePrivateKeyToPEMWithNilKey(t *testing.T) {
+	pem, err := EncodePrivateKeyToPEM(nil)
+	if err == nil {
+		t.Fatal("Expected error for nil private key")
+	}
+	if pem != nil {
+		t.Error("Expected nil PEM for nil key")
+	}
+}
+
+// TestEncodePrivateKeyToDERWithNilKey tests encoding nil private key to DER
+func TestEncodePrivateKeyToDERWithNilKey(t *testing.T) {
+	der, err := EncodePrivateKeyToDER(nil)
+	if err == nil {
+		t.Fatal("Expected error for nil private key")
+	}
+	if der != nil {
+		t.Error("Expected nil DER for nil key")
+	}
+}
+
+// TestEncodeCSRToPEMWithNilCSR tests encoding nil CSR
+func TestEncodeCSRToPEMWithNilCSR(t *testing.T) {
+	pem, err := EncodeCSRToPEM(nil)
+	if err == nil {
+		t.Fatal("Expected error for nil CSR")
+	}
+	if pem != nil {
+		t.Error("Expected nil PEM for nil CSR")
+	}
+}
+
+// TestEncodeCSRToDERWithNilCSR tests encoding nil CSR to DER
+func TestEncodeCSRToDERWithNilCSR(t *testing.T) {
+	der, err := EncodeCSRToDER(nil)
+	if err == nil {
+		t.Fatal("Expected error for nil CSR")
+	}
+	if der != nil {
+		t.Error("Expected nil DER for nil CSR")
+	}
+}
+
+// TestEncodeCertificateToPEMWithNilCert tests encoding nil certificate
+func TestEncodeCertificateToPEMWithNilCert(t *testing.T) {
+	pem, err := EncodeCertificateToPEM(nil)
+	if err == nil {
+		t.Fatal("Expected error for nil certificate")
+	}
+	if pem != nil {
+		t.Error("Expected nil PEM for nil certificate")
+	}
+}
+
+// TestEncodeCertificateToDERWithNilCert tests encoding nil certificate to DER
+func TestEncodeCertificateToDERWithNilCert(t *testing.T) {
+	der, err := EncodeCertificateToDER(nil)
+	if err == nil {
+		t.Fatal("Expected error for nil certificate")
+	}
+	if der != nil {
+		t.Error("Expected nil DER for nil certificate")
+	}
+}
