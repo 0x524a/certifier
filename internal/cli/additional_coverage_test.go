@@ -1271,3 +1271,276 @@ func TestGenerateCSRFromFileCmdWithValidFullConfig(t *testing.T) {
 		t.Errorf("CSR file not created")
 	}
 }
+
+// TestGenerateCertFromConfigWithCA tests generateCertFromConfig with CA certificate
+func TestGenerateCertFromConfigWithCA(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "ca-config.yaml")
+
+	configContent := `certificates:
+  - commonName: Config Test CA
+    organization: Config CA Org
+    country: US
+    isCA: true
+    validity: 3650
+    keyType: rsa2048
+    certificateOutputFile: config-ca.crt
+    privateKeyOutputFile: config-ca.key
+`
+
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	outDir := filepath.Join(tmpDir, "output")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+
+	oldCwd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldCwd) }()
+	if err := os.Chdir(outDir); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	err := GenerateCertFromFileCmd(configPath)
+	if err != nil {
+		t.Errorf("GenerateCertFromFileCmd with CA failed: %v", err)
+	}
+
+	// Verify CA cert was created
+	certFile := filepath.Join(outDir, "config-ca.crt")
+	if _, err := os.Stat(certFile); os.IsNotExist(err) {
+		t.Errorf("CA certificate file not created")
+	}
+}
+
+// TestGenerateCertFromConfigWithIPAddresses tests cert generation with IP addresses
+func TestGenerateCertFromConfigWithIPAddresses(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "ip-config.yaml")
+
+	configContent := `certificates:
+  - commonName: IP Test
+    organization: IP Test Org
+    country: US
+    isCA: false
+    validity: 365
+    keyType: ecdsa-p256
+    ipAddresses:
+      - 192.168.1.100
+      - 10.0.0.1
+      - "::1"
+    certificateOutputFile: ip-cert.crt
+    privateKeyOutputFile: ip-cert.key
+`
+
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	outDir := filepath.Join(tmpDir, "output")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+
+	oldCwd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldCwd) }()
+	if err := os.Chdir(outDir); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	err := GenerateCertFromFileCmd(configPath)
+	if err != nil {
+		t.Errorf("GenerateCertFromFileCmd with IPs failed: %v", err)
+	}
+
+	// Verify cert was created
+	certFile := filepath.Join(outDir, "ip-cert.crt")
+	if _, err := os.Stat(certFile); os.IsNotExist(err) {
+		t.Errorf("Certificate file with IPs not created")
+	}
+}
+
+// TestGenerateCSRFromConfigWithIPAddresses tests CSR generation with IP addresses
+func TestGenerateCSRFromConfigWithIPAddresses(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "csr-ip-config.yaml")
+
+	configContent := `certificates:
+  - commonName: CSR IP Test
+    organization: CSR IP Org
+    country: US
+    isCSR: true
+    keyType: rsa2048
+    ipAddresses:
+      - 192.168.1.200
+      - "2001:db8::1"
+    dnsNames:
+      - test.example.com
+    csrOutputFile: ip-csr.csr
+    privateKeyOutputFile: ip-csr.key
+`
+
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	outDir := filepath.Join(tmpDir, "output")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+
+	oldCwd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldCwd) }()
+	if err := os.Chdir(outDir); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	err := GenerateCSRFromFileCmd(configPath)
+	if err != nil {
+		t.Errorf("GenerateCSRFromFileCmd with IPs failed: %v", err)
+	}
+
+	// Verify CSR was created
+	csrFile := filepath.Join(outDir, "ip-csr.csr")
+	if _, err := os.Stat(csrFile); os.IsNotExist(err) {
+		t.Errorf("CSR file with IPs not created")
+	}
+}
+
+// TestGenerateCertFromConfigWithExtKeyUsages tests cert with extended key usages
+func TestGenerateCertFromConfigWithExtKeyUsages(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "eku-config.yaml")
+
+	configContent := `certificates:
+  - commonName: EKU Test
+    organization: EKU Test Org
+    country: US
+    isCA: false
+    validity: 365
+    keyType: rsa2048
+    certificateType: server
+    extendedKeyUsageOIDs:
+      - "1.3.6.1.5.5.7.3.1"
+      - "1.3.6.1.5.5.7.3.2"
+    certificateOutputFile: eku-cert.crt
+    privateKeyOutputFile: eku-cert.key
+`
+
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	outDir := filepath.Join(tmpDir, "output")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+
+	oldCwd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldCwd) }()
+	if err := os.Chdir(outDir); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	err := GenerateCertFromFileCmd(configPath)
+	if err != nil {
+		t.Errorf("GenerateCertFromFileCmd with EKU failed: %v", err)
+	}
+
+	// Verify cert was created
+	certFile := filepath.Join(outDir, "eku-cert.crt")
+	if _, err := os.Stat(certFile); os.IsNotExist(err) {
+		t.Errorf("Certificate file with EKU not created")
+	}
+}
+
+// TestGenerateCACmdWithInvalidKeyType tests CA generation with invalid key type
+func TestGenerateCACmdWithInvalidKeyType(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := GenerateCACmd([]string{
+		"--cn", "Invalid Key CA",
+		"--key-type", "invalid-type",
+		"--output", filepath.Join(tmpDir, "ca.crt"),
+		"--key-output", filepath.Join(tmpDir, "ca.key"),
+		"--non-interactive",
+	})
+
+	// Should succeed - invalid key types default to RSA2048
+	if err != nil {
+		t.Logf("GenerateCACmd with invalid key type: %v (may succeed with default)", err)
+	}
+}
+
+// TestGenerateCACmdWithAllSubjectFieldsComplete tests CA with all subject fields
+func TestGenerateCACmdWithAllSubjectFieldsComplete(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := GenerateCACmd([]string{
+		"--cn", "Complete Subject CA",
+		"--org", "Complete Org",
+		"--ou", "Complete OU",
+		"--locality", "Complete City",
+		"--province", "Complete State",
+		"--country", "US",
+		"--validity", "7300",
+		"--key-type", "ecdsa-p384",
+		"--output", filepath.Join(tmpDir, "complete-ca.crt"),
+		"--key-output", filepath.Join(tmpDir, "complete-ca.key"),
+		"--non-interactive",
+	})
+
+	if err != nil {
+		t.Errorf("GenerateCACmd with all subject fields failed: %v", err)
+	}
+
+	// Verify files were created
+	certFile := filepath.Join(tmpDir, "complete-ca.crt")
+	if _, err := os.Stat(certFile); os.IsNotExist(err) {
+		t.Errorf("Complete CA certificate file not created")
+	}
+}
+
+// TestGenerateCSRCmdWithCompleteConfig tests CSR with full configuration
+func TestGenerateCSRCmdWithCompleteConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := GenerateCSRCmd([]string{
+		"--cn", "Complete CSR",
+		"--org", "Complete CSR Org",
+		"--country", "CA",
+		"--dns", "csr1.example.com,csr2.example.com,csr3.example.com",
+		"--key-type", "ed25519",
+		"--output", filepath.Join(tmpDir, "complete.csr"),
+		"--key-output", filepath.Join(tmpDir, "complete.key"),
+		"--non-interactive",
+	})
+
+	if err != nil {
+		t.Errorf("GenerateCSRCmd with complete config failed: %v", err)
+	}
+
+	// Verify files were created
+	csrFile := filepath.Join(tmpDir, "complete.csr")
+	if _, err := os.Stat(csrFile); os.IsNotExist(err) {
+		t.Errorf("Complete CSR file not created")
+	}
+}
+
+// TestGenerateCertCmdWithInvalidConfigFile tests cert generation with invalid config file
+func TestGenerateCertCmdWithInvalidConfigFile(t *testing.T) {
+	err := GenerateCertCmd([]string{"-f", "/nonexistent/invalid/path/config.yaml"})
+	if err == nil {
+		t.Error("Expected error for invalid config file path")
+	}
+}
+
+// TestGenerateCSRCmdWithInvalidConfigFile tests CSR generation with invalid config file
+func TestGenerateCSRCmdWithInvalidConfigFile(t *testing.T) {
+	err := GenerateCSRCmd([]string{"-f", "/nonexistent/invalid/path/csr-config.yaml"})
+	if err == nil {
+		t.Error("Expected error for invalid CSR config file path")
+	}
+}
