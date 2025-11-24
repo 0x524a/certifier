@@ -1369,3 +1369,4 @@ func TestGenerateCASignedCertificateWithMixedKeyTypes(t *testing.T) {
 		t.Errorf("Expected issuer %s, got %s", caCert.Subject.CommonName, cert.Issuer.CommonName)
 	}
 }
+
