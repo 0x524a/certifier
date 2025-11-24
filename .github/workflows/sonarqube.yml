@@ -1,8 +1,11 @@
 name: SonarQube Scan
 
 on:
-  push:
-    branches: [ main, develop ]
+  workflow_run:
+    workflows: ["Run tests and upload coverage"]
+    types:
+      - completed
+    branches: [main, develop]
   pull_request:
     branches: [ main, develop ]
 
@@ -10,24 +13,29 @@ jobs:
   sonarqube:
     name: SonarQube Scan
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
         with:
           fetch-depth: 0
 
-      - name: Set up Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
+      - name: Download coverage artifact
+        uses: dawidd6/action-download-artifact@v6
+        continue-on-error: true
         with:
-          go-version: '1.22'
-          cache: true
+          workflow: lint.yml
+          name: coverage-report
+          path: .
 
-      - name: Run tests with coverage
+      - name: Run tests if coverage not available
         run: |
-          go test -v -coverprofile=coverage.out ./...
+          if [ ! -f coverage.out ]; then
+            go test -v -coverprofile=coverage.out ./...
+          fi
           go tool cover -func=coverage.out
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@ba3875ecf642b2129de2b589510c81a8b53dbf4e
+        uses: SonarSource/sonarcloud-github-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
