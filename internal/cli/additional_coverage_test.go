@@ -1186,3 +1186,88 @@ func TestViewCertificateDetailsCmdWithComplexCert(t *testing.T) {
 		t.Errorf("ViewCertificateDetailsCmd failed: %v", err)
 	}
 }
+
+// TestGenerateCertFromFileCmdWithValidFullConfig tests file-based cert generation with valid config
+func TestGenerateCertFromFileCmdWithValidFullConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "valid-config.yaml")
+
+	configContent := `certificates:
+  - commonName: file-test.example.com
+    organization: File Test Org
+    country: US
+    isCA: false
+    validity: 365
+    keyType: rsa2048
+    certificateOutputFile: file-cert.crt
+    privateKeyOutputFile: file-cert.key
+`
+
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	outDir := filepath.Join(tmpDir, "output")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+
+	oldCwd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldCwd) }()
+	if err := os.Chdir(outDir); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	err := GenerateCertFromFileCmd(configPath)
+	if err != nil {
+		t.Errorf("GenerateCertFromFileCmd failed: %v", err)
+	}
+
+	// Verify file was created
+	certFile := filepath.Join(outDir, "file-cert.crt")
+	if _, err := os.Stat(certFile); os.IsNotExist(err) {
+		t.Errorf("Certificate file not created")
+	}
+}
+
+// TestGenerateCSRFromFileCmdWithValidFullConfig tests CSR file-based generation
+func TestGenerateCSRFromFileCmdWithValidFullConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "csr-valid.yaml")
+
+	configContent := `certificates:
+  - commonName: csr-file.example.com
+    organization: CSR Test Org
+    country: US
+    isCSR: true
+    keyType: ecdsa-p256
+    csrOutputFile: file-csr.csr
+    privateKeyOutputFile: file-csr.key
+`
+
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	outDir := filepath.Join(tmpDir, "output")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+
+	oldCwd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldCwd) }()
+	if err := os.Chdir(outDir); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	err := GenerateCSRFromFileCmd(configPath)
+	if err != nil {
+		t.Errorf("GenerateCSRFromFileCmd failed: %v", err)
+	}
+
+	// Verify file was created
+	csrFile := filepath.Join(outDir, "file-csr.csr")
+	if _, err := os.Stat(csrFile); os.IsNotExist(err) {
+		t.Errorf("CSR file not created")
+	}
+}

@@ -916,3 +916,68 @@ func TestEncodeCertificateToDERWithNilCert(t *testing.T) {
 		t.Error("Expected nil DER for nil certificate")
 	}
 }
+
+// TestEncodeToPKCS12WithNilCertificate tests PKCS12 encoding with nil certificate
+func TestEncodeToPKCS12WithNilCertificate(t *testing.T) {
+	key, _ := cert.GeneratePrivateKey(cert.KeyTypeRSA2048)
+
+	pfx, err := EncodeToPKCS12(nil, key, "password")
+	if err == nil {
+		t.Fatal("Expected error for nil certificate")
+	}
+	if pfx != nil {
+		t.Error("Expected nil PKCS12 for nil certificate")
+	}
+}
+
+// TestEncodeToPKCS12WithNilPrivateKey tests PKCS12 encoding with nil private key
+func TestEncodeToPKCS12WithNilPrivateKey(t *testing.T) {
+	config := &cert.CertificateConfig{
+		CommonName: "test.example.com",
+		KeyType:    cert.KeyTypeRSA2048,
+		Validity:   365,
+	}
+
+	certificate, _, _ := cert.GenerateSelfSignedCertificate(config)
+
+	pfx, err := EncodeToPKCS12(certificate, nil, "password")
+	if err == nil {
+		t.Fatal("Expected error for nil private key")
+	}
+	if pfx != nil {
+		t.Error("Expected nil PKCS12 for nil private key")
+	}
+}
+
+// TestEncodeToPKCS12WithEmptyPassword tests PKCS12 encoding with empty password
+func TestEncodeToPKCS12WithEmptyPassword(t *testing.T) {
+	config := &cert.CertificateConfig{
+		CommonName: "test.example.com",
+		KeyType:    cert.KeyTypeRSA2048,
+		Validity:   365,
+	}
+
+	certificate, key, err := cert.GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("Failed to generate certificate: %v", err)
+	}
+
+	pfx, err := EncodeToPKCS12(certificate, key, "")
+	if err != nil {
+		t.Fatalf("Failed to encode PKCS12 with empty password: %v", err)
+	}
+
+	if len(pfx) == 0 {
+		t.Error("Expected non-empty PKCS12 data")
+	}
+
+	// Verify we can decode it back
+	decodedKey, decodedCert, err := DecodeFromPKCS12(pfx, "")
+	if err != nil {
+		t.Fatalf("Failed to decode PKCS12: %v", err)
+	}
+
+	if decodedKey == nil || decodedCert == nil {
+		t.Error("Expected valid key and cert from decoded PKCS12")
+	}
+}
