@@ -840,3 +840,164 @@ func TestGenerateCACmdWithDifferentKeyTypes(t *testing.T) {
 		})
 	}
 }
+
+// TestViewCertificateDetailsCmdWithDNSAndIP tests viewing cert with DNS names and IPs
+func TestViewCertificateDetailsCmdWithDNSAndIP(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Generate a certificate with DNS names and IP addresses
+	certPath := filepath.Join(tmpDir, "full-san.crt")
+	keyPath := filepath.Join(tmpDir, "full-san.key")
+
+	err := GenerateCertCmd([]string{
+		"--cn", "full-san.example.com",
+		"--dns", "dns1.example.com,dns2.example.com",
+		"--ip", "192.168.1.1,10.0.0.1",
+		"--output", certPath,
+		"--key-output", keyPath,
+	})
+
+	if err != nil {
+		t.Fatalf("Failed to generate certificate: %v", err)
+	}
+
+	// View the certificate to cover DNS and IP display lines
+	err = ViewCertificateDetailsCmd(certPath)
+	if err != nil {
+		t.Errorf("ViewCertificateDetailsCmd failed: %v", err)
+	}
+}
+
+// TestGenerateCSRFromFileCmdWithNonCSREntries tests CSR generation when config has no CSRs
+func TestGenerateCSRFromFileCmdWithNonCSREntries(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "no-csr.yaml")
+
+	// Config with only certificates, no CSRs
+	configContent := `certificates:
+  - commonName: cert.example.com
+    organization: Test Org
+    country: US
+    isCA: false
+    isCSR: false
+    validity: 365
+    keyType: rsa2048
+    certificateOutputFile: cert.crt
+    privateKeyOutputFile: cert.key
+`
+
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	outDir := filepath.Join(tmpDir, "output")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+
+	oldCwd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldCwd) }()
+	if err := os.Chdir(outDir); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	// This should succeed with 0 CSRs generated
+	err := GenerateCSRFromFileCmd(configPath)
+	if err != nil {
+		t.Errorf("GenerateCSRFromFileCmd should succeed with no CSRs: %v", err)
+	}
+}
+
+// TestGenerateCertCmdWithEmptyCNAndNonInteractive tests the CN validation
+func TestGenerateCertCmdWithEmptyCNAndNonInteractive(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Empty CN with non-interactive flag should fail
+	err := GenerateCertCmd([]string{
+		"--non-interactive",
+		"--output", filepath.Join(tmpDir, "test.crt"),
+		"--key-output", filepath.Join(tmpDir, "test.key"),
+	})
+
+	if err == nil {
+		t.Errorf("Expected error for empty CN with non-interactive, got nil")
+	}
+}
+
+// TestGenerateCSRCmdWithEmptyCNAndNonInteractive tests CSR CN validation
+func TestGenerateCSRCmdWithEmptyCNAndNonInteractive(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Empty CN with non-interactive flag should fail
+	err := GenerateCSRCmd([]string{
+		"--non-interactive",
+		"--output", filepath.Join(tmpDir, "test.csr"),
+		"--key-output", filepath.Join(tmpDir, "test.key"),
+	})
+
+	if err == nil {
+		t.Errorf("Expected error for empty CN with non-interactive, got nil")
+	}
+}
+
+// TestViewCACmdWithCert tests ViewCACmd function
+func TestViewCACmdWithCert(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// First generate a CA
+	caPath := filepath.Join(tmpDir, "view-ca.crt")
+	keyPath := filepath.Join(tmpDir, "view-ca.key")
+
+	err := GenerateCACmd([]string{
+		"--cn", "View Test CA",
+		"--non-interactive",
+		"--output", caPath,
+		"--key-output", keyPath,
+	})
+
+	if err != nil {
+		t.Fatalf("Failed to generate CA: %v", err)
+	}
+
+	// Test viewing the CA
+	err = ViewCACmd([]string{"--cert", caPath})
+	if err != nil {
+		t.Errorf("ViewCACmd failed: %v", err)
+	}
+}
+
+// TestViewCACmdMissingCertFlag tests ViewCACmd without cert flag
+func TestViewCACmdMissingCertFlag(t *testing.T) {
+	err := ViewCACmd([]string{})
+	if err == nil {
+		t.Errorf("Expected error for missing cert flag, got nil")
+	}
+}
+
+// TestGenerateCertCmdWithOnlyIPAddresses tests cert with only IPs, no DNS
+func TestGenerateCertCmdWithOnlyIPAddresses(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := GenerateCertCmd([]string{
+		"--cn", "ip-only.example.com",
+		"--ip", "192.168.1.100,10.0.0.100,fe80::1",
+		"--output", filepath.Join(tmpDir, "ip-only.crt"),
+		"--key-output", filepath.Join(tmpDir, "ip-only.key"),
+	})
+
+	if err != nil {
+		t.Errorf("GenerateCertCmd with only IPs failed: %v", err)
+	}
+
+	// Verify certificate was created
+	certPath := filepath.Join(tmpDir, "ip-only.crt")
+	if _, err := os.Stat(certPath); os.IsNotExist(err) {
+		t.Errorf("Certificate file not created")
+	}
+
+	// View it to cover the IP display path
+	err = ViewCertificateDetailsCmd(certPath)
+	if err != nil {
+		t.Errorf("ViewCertificateDetailsCmd failed: %v", err)
+	}
+}
