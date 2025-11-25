@@ -1,0 +1,52 @@
+# Sample Configuration File for Certifier
+# This file demonstrates how to configure certificate generation
+
+# CA Certificate Configuration
+- commonName: "My Root CA"
+  organization: "My Organization"
+  country: "US"
+  locality: "San Francisco"
+  province: "California"
+  validity: 3650  # 10 years
+  keyType: "rsa2048"
+  isCA: true
+  maxPathLength: -1
+  certificateOutputFile: "ca.crt"
+  privateKeyOutputFile: "ca.key"
+
+# Server Certificate Configuration
+- commonName: "server.example.com"
+  organization: "My Organization"
+  country: "US"
+  dnsNames:
+    - "server.example.com"
+    - "www.server.example.com"
+    - "api.server.example.com"
+  validity: 365
+  keyType: "rsa2048"
+  extendedKeyUsage:
+    - "serverAuth"
+  certificateOutputFile: "server.crt"
+  privateKeyOutputFile: "server.key"
+
+# Client Certificate Configuration
+- commonName: "client.example.com"
+  organization: "My Organization"
+  country: "US"
+  validity: 365
+  keyType: "ecdsa-p256"
+  extendedKeyUsage:
+    - "clientAuth"
+  certificateOutputFile: "client.crt"
+  privateKeyOutputFile: "client.key"
+
+# CSR (Certificate Signing Request) Configuration
+# Uncomment to generate a CSR instead of a certificate
+# - commonName: "csr.example.com"
+#   organization: "My Organization"
+#   country: "US"
+#   dnsNames:
+#     - "csr.example.com"
+#   keyType: "rsa2048"
+#   csrOutputFile: "request.csr"
+#   privateKeyOutputFile: "request.key"
