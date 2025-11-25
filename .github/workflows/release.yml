@@ -37,17 +37,37 @@ jobs:
 
       - name: Build binary
         run: |
-          mkdir -p dist
+          mkdir -p dist/${{ matrix.goos }}-${{ matrix.goarch }}
           CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
             go build -ldflags="-X main.Version=${{ github.ref_name }}" \
-            -o dist/certifier-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }} \
+            -o dist/${{ matrix.goos }}-${{ matrix.goarch }}/certifier${{ matrix.goos == 'windows' && '.exe' || '' }} \
             ./cmd/certifier
+          
+          # Copy sample config to distribution directory
+          cp config.sample.yaml dist/${{ matrix.goos }}-${{ matrix.goarch }}/
+          
+          # Create archive
+          cd dist
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            zip -r certifier-${{ matrix.goos }}-${{ matrix.goarch }}.zip ${{ matrix.goos }}-${{ matrix.goarch }}/
+          else
+            tar -czf certifier-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz ${{ matrix.goos }}-${{ matrix.goarch }}/
+          fi
+          cd ..
 
       - name: Upload artifacts
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: certifier-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: dist/
+          path: dist/*.tar.gz
+          if-no-files-found: ignore
+
+      - name: Upload Windows artifact
+        if: matrix.goos == 'windows'
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: certifier-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*.zip
 
   release:
     name: Create Release
@@ -71,22 +91,34 @@ jobs:
             # Release ${{ github.ref_name }}
 
             ## Downloads
-            - **Linux (x86_64)**: `certifier-linux-amd64`
-            - **Linux (ARM64)**: `certifier-linux-arm64`
-            - **macOS (Intel)**: `certifier-darwin-amd64`
-            - **macOS (Apple Silicon)**: `certifier-darwin-arm64`
-            - **Windows (x86_64)**: `certifier-windows-amd64.exe`
+            - **Linux (x86_64)**: `certifier-linux-amd64.tar.gz`
+            - **Linux (ARM64)**: `certifier-linux-arm64.tar.gz`
+            - **macOS (Intel)**: `certifier-darwin-amd64.tar.gz`
+            - **macOS (Apple Silicon)**: `certifier-darwin-arm64.tar.gz`
+            - **Windows (x86_64)**: `certifier-windows-amd64.zip`
+
+            Each archive contains:
+            - `certifier` binary (or `certifier.exe` for Windows)
+            - `config.sample.yaml` - Sample configuration file
 
             ## Installation
             ```bash
-            # Download and extract
+            # Linux/macOS: Download and extract
             tar -xzf certifier-linux-amd64.tar.gz
+            cd linux-amd64
             
             # Make executable
             chmod +x certifier
             
-            # Move to PATH
+            # Move to PATH (optional)
             sudo mv certifier /usr/local/bin/
+            ```
+
+            ```powershell
+            # Windows: Extract and use
+            Expand-Archive certifier-windows-amd64.zip
+            cd windows-amd64
+            .\certifier.exe --help
             ```
 
             ## Usage
