@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"fmt"
 	"io"
 	"math/big"
@@ -58,11 +57,12 @@ func GenerateCRL(config *CRLConfig) ([]byte, error) {
 	}
 
 	// Build revoked certificates list
-	var revokedCerts []pkix.RevokedCertificate
+	var revokedCerts []x509.RevocationListEntry
 	for _, revoked := range config.RevokedCerts {
-		revokedCerts = append(revokedCerts, pkix.RevokedCertificate{
+		revokedCerts = append(revokedCerts, x509.RevocationListEntry{
 			SerialNumber:   revoked.SerialNumber,
 			RevocationTime: revoked.RevocationTime,
+			ReasonCode:     revoked.RevocationReason,
 		})
 	}
 
@@ -74,11 +74,11 @@ func GenerateCRL(config *CRLConfig) ([]byte, error) {
 	}
 
 	crlTemplate := &x509.RevocationList{
-		Issuer:              config.CACertificate.Subject,
-		ThisUpdate:          now,
-		NextUpdate:          now.Add(validity),
-		RevokedCertificates: revokedCerts,
-		Number:              big.NewInt(config.Number),
+		Issuer:                    config.CACertificate.Subject,
+		ThisUpdate:                now,
+		NextUpdate:                now.Add(validity),
+		RevokedCertificateEntries: revokedCerts,
+		Number:                    big.NewInt(config.Number),
 	}
 
 	// Create CRL with a simple key wrapper
