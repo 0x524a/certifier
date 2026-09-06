@@ -368,6 +368,18 @@ func TestFullWorkflow(t *testing.T) {
 		}
 	})
 
+	t.Run("ocsp check without url or AIA entry", func(t *testing.T) {
+		// server.crt has no OCSP AIA entry, and no --url is given, so this
+		// must fail fast with a clear error rather than hang on network I/O.
+		res := run(t, dir, "ocsp", "check", "--cert", "server.crt", "--ca-cert", "ca.crt")
+		if res.exitCode != 1 {
+			t.Errorf("exit code = %d, want 1 (stdout=%q stderr=%q)", res.exitCode, res.stdout, res.stderr)
+		}
+		if !strings.Contains(res.stderr, "OCSP URL is required") {
+			t.Errorf("stderr = %q, want to contain %q", res.stderr, "OCSP URL is required")
+		}
+	})
+
 	t.Run("ocsp no subcommand", func(t *testing.T) {
 		res := run(t, dir, "ocsp")
 		if res.exitCode != 1 {

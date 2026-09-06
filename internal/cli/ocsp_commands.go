@@ -245,6 +245,74 @@ func VerifyOCSPResponse(args []string) {
 	}
 }
 
+// CheckOCSPStatusCmd checks a certificate's revocation status against a live OCSP
+// responder and returns an error instead of exiting.
+func CheckOCSPStatusCmd(args []string) error {
+	cmd := flag.NewFlagSet("ocsp check", flag.ContinueOnError)
+	certFile := cmd.String("cert", "", "Certificate file to check (required)")
+	caCertFile := cmd.String("ca-cert", "", "CA certificate file (issuer) (required)")
+	url := cmd.String("url", "", "OCSP responder URL (defaults to the certificate's AIA OCSP URL)")
+
+	if err := cmd.Parse(args); err != nil {
+		return fmt.Errorf("error parsing flags: %w", err)
+	}
+
+	if *certFile == "" {
+		return fmt.Errorf("certificate file (--cert) is required")
+	}
+	if *caCertFile == "" {
+		return fmt.Errorf("CA certificate file (--ca-cert) is required")
+	}
+
+	certPEM, err := os.ReadFile(*certFile)
+	if err != nil {
+		return fmt.Errorf("error reading certificate file: %w", err)
+	}
+	certificate, err := encoding.DecodeCertificateFromPEM(certPEM)
+	if err != nil {
+		return fmt.Errorf("error parsing certificate: %w", err)
+	}
+
+	caCertPEM, err := os.ReadFile(*caCertFile)
+	if err != nil {
+		return fmt.Errorf("error reading CA certificate: %w", err)
+	}
+	caCert, err := encoding.DecodeCertificateFromPEM(caCertPEM)
+	if err != nil {
+		return fmt.Errorf("error parsing CA certificate: %w", err)
+	}
+
+	status, err := ocsp.CheckCertificateStatus(certificate, caCert, *url)
+	if err != nil {
+		return fmt.Errorf("error checking OCSP status: %w", err)
+	}
+
+	fmt.Println("OCSP Certificate Status:")
+	fmt.Println("========================")
+	fmt.Printf("Status: %s\n", status.Status)
+	fmt.Printf("Serial Number: %s\n", status.Serial)
+	fmt.Printf("Responder URL: %s\n", status.ResponderURL)
+	fmt.Printf("This Update: %s\n", status.ThisUpdate)
+	fmt.Printf("Next Update: %s\n", status.NextUpdate)
+	fmt.Printf("Produced At: %s\n", status.ProducedAt)
+
+	if status.Status == "revoked" {
+		fmt.Printf("Revocation Time: %s\n", status.RevocationTime)
+		fmt.Printf("Revocation Reason: %s\n", status.RevocationReason)
+	}
+
+	return nil
+}
+
+// CheckOCSPStatus checks a certificate's revocation status against a live OCSP
+// responder (wrapper that calls CheckOCSPStatusCmd and handles exit).
+func CheckOCSPStatus(args []string) {
+	if err := CheckOCSPStatusCmd(args); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
 // parseOCSPStatus converts a status flag string to the OCSPConfig.Status int value.
 func parseOCSPStatus(statusStr string) (int, error) {
 	switch statusStr {

@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -8,6 +10,18 @@ import (
 	"github.com/0x524a/certifier/pkg/cert"
 	"github.com/0x524a/certifier/pkg/encoding"
 )
+
+// newStaticOCSPResponder starts an httptest.Server that always serves the
+// given pre-built DER-encoded OCSP response, regardless of the request body -
+// enough to test CheckOCSPStatusCmd's HTTP plumbing against a fixed fixture.
+func newStaticOCSPResponder(t *testing.T, respBytes []byte) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/ocsp-response")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(respBytes)
+	}))
+}
 
 // createTestOCSPFixtures creates a CA and a leaf certificate signed by it, writes
 // their PEM-encoded certificates and private keys to temp files, and returns the
@@ -354,5 +368,135 @@ func TestVerifyOCSPResponse_Wrapper(t *testing.T) {
 		"--response", responseFile,
 		"--cert", certFile,
 		"--ca-cert", caCertFile,
+	})
+}
+
+func TestCheckOCSPStatusCmd(t *testing.T) {
+	caCertFile, caKeyFile, certFile, _ := createTestOCSPFixtures(t)
+	tmpDir := t.TempDir()
+
+	goodResponseFile := filepath.Join(tmpDir, "good.der")
+	if err := GenerateOCSPResponseCmd([]string{
+		"--cert", certFile,
+		"--ca-cert", caCertFile,
+		"--responder-key", caKeyFile,
+		"--status", "good",
+		"--output", goodResponseFile,
+	}); err != nil {
+		t.Fatalf("Failed to generate good response fixture: %v", err)
+	}
+	goodBytes, err := os.ReadFile(goodResponseFile)
+	if err != nil {
+		t.Fatalf("Failed to read good response fixture: %v", err)
+	}
+
+	revokedResponseFile := filepath.Join(tmpDir, "revoked.der")
+	if err := GenerateOCSPResponseCmd([]string{
+		"--cert", certFile,
+		"--ca-cert", caCertFile,
+		"--responder-key", caKeyFile,
+		"--status", "revoked",
+		"--output", revokedResponseFile,
+	}); err != nil {
+		t.Fatalf("Failed to generate revoked response fixture: %v", err)
+	}
+	revokedBytes, err := os.ReadFile(revokedResponseFile)
+	if err != nil {
+		t.Fatalf("Failed to read revoked response fixture: %v", err)
+	}
+
+	goodServer := newStaticOCSPResponder(t, goodBytes)
+	defer goodServer.Close()
+	revokedServer := newStaticOCSPResponder(t, revokedBytes)
+	defer revokedServer.Close()
+	badServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer badServer.Close()
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{
+			name:    "missing cert flag",
+			args:    []string{"--ca-cert", caCertFile, "--url", goodServer.URL},
+			wantErr: true,
+		},
+		{
+			name:    "missing ca-cert flag",
+			args:    []string{"--cert", certFile, "--url", goodServer.URL},
+			wantErr: true,
+		},
+		{
+			name:    "nonexistent cert file",
+			args:    []string{"--cert", "/nonexistent/cert.crt", "--ca-cert", caCertFile, "--url", goodServer.URL},
+			wantErr: true,
+		},
+		{
+			name:    "no url and no AIA entry",
+			args:    []string{"--cert", certFile, "--ca-cert", caCertFile},
+			wantErr: true,
+		},
+		{
+			name:    "responder returns non-200",
+			args:    []string{"--cert", certFile, "--ca-cert", caCertFile, "--url", badServer.URL},
+			wantErr: true,
+		},
+		{
+			name:    "good status",
+			args:    []string{"--cert", certFile, "--ca-cert", caCertFile, "--url", goodServer.URL},
+			wantErr: false,
+		},
+		{
+			name:    "revoked status",
+			args:    []string{"--cert", certFile, "--ca-cert", caCertFile, "--url", revokedServer.URL},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := CheckOCSPStatusCmd(tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CheckOCSPStatusCmd() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCheckOCSPStatusCmdInvalidArgs(t *testing.T) {
+	err := CheckOCSPStatusCmd([]string{"--unknown-flag"})
+	if err == nil {
+		t.Errorf("Expected error for invalid flags")
+	}
+}
+
+func TestCheckOCSPStatus_Wrapper(t *testing.T) {
+	caCertFile, caKeyFile, certFile, _ := createTestOCSPFixtures(t)
+	tmpDir := t.TempDir()
+	responseFile := filepath.Join(tmpDir, "response.der")
+
+	if err := GenerateOCSPResponseCmd([]string{
+		"--cert", certFile,
+		"--ca-cert", caCertFile,
+		"--responder-key", caKeyFile,
+		"--output", responseFile,
+	}); err != nil {
+		t.Fatalf("Failed to generate response fixture: %v", err)
+	}
+	respBytes, err := os.ReadFile(responseFile)
+	if err != nil {
+		t.Fatalf("Failed to read response fixture: %v", err)
+	}
+	server := newStaticOCSPResponder(t, respBytes)
+	defer server.Close()
+
+	// Should not exit the process for a valid call.
+	CheckOCSPStatus([]string{
+		"--cert", certFile,
+		"--ca-cert", caCertFile,
+		"--url", server.URL,
 	})
 }

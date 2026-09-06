@@ -211,7 +211,7 @@ func handleCRLCommand() {
 
 func handleOCSPCommand() {
 	if len(os.Args) < 3 {
-		fmt.Fprintf(os.Stderr, "Usage: certifier ocsp <response|request|verify> [options]\n")
+		fmt.Fprintf(os.Stderr, "Usage: certifier ocsp <response|request|verify|check> [options]\n")
 		os.Exit(1)
 	}
 
@@ -224,6 +224,8 @@ func handleOCSPCommand() {
 		createOCSPRequest(os.Args[3:])
 	case "verify":
 		verifyOCSPResponse(os.Args[3:])
+	case "check":
+		checkOCSPStatus(os.Args[3:])
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown ocsp subcommand: %s\n", subcommand)
 		os.Exit(1)
@@ -293,4 +295,8 @@ func createOCSPRequest(args []string) {
 
 func verifyOCSPResponse(args []string) {
 	cli.VerifyOCSPResponse(args)
+}
+
+func checkOCSPStatus(args []string) {
+	cli.CheckOCSPStatus(args)
 }

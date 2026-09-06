@@ -2,10 +2,14 @@ package ocsp
 
 import (
 	"crypto/x509"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/0x524a/certifier/pkg/cert"
+	xocsp "golang.org/x/crypto/ocsp"
 )
 
 // testFixtures generates a self-signed CA and a leaf certificate signed by it,
@@ -420,77 +424,158 @@ func TestVerifyOCSPResponse_WrongCertificate(t *testing.T) {
 	}
 }
 
-func TestCheckCertificateStatus(t *testing.T) {
-	_, _, leafCert, _ := testFixtures(t)
+// newOCSPTestResponder starts an httptest.Server that acts as a real OCSP
+// responder: it parses the incoming DER request, signs a response for the
+// requested status using the package's own GenerateOCSPResponse, and writes
+// it back. httpStatus/rawBody override the response for failure-path tests.
+func newOCSPTestResponder(t *testing.T, caCert *x509.Certificate, caKey interface{}, status int) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		ocspReq, err := xocsp.ParseRequest(reqBytes)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		respBytes, err := GenerateOCSPResponse(&OCSPConfig{
+			ResponderCertificate: caCert,
+			ResponderPrivateKey:  caKey,
+			CACertificate:        caCert,
+			Certificate:          &x509.Certificate{SerialNumber: ocspReq.SerialNumber},
+			Status:               status,
+			ThisUpdate:           time.Now(),
+			NextUpdate:           time.Now().Add(24 * time.Hour),
+		})
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/ocsp-response")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(respBytes)
+	}))
+}
+
+func TestCheckCertificateStatusGood(t *testing.T) {
+	caCert, caKey, leafCert, _ := testFixtures(t)
+	server := newOCSPTestResponder(t, caCert, caKey, 0)
+	defer server.Close()
+
+	status, err := CheckCertificateStatus(leafCert, caCert, server.URL)
+	if err != nil {
+		t.Fatalf("CheckCertificateStatus failed: %v", err)
+	}
+	if status.Status != "good" {
+		t.Errorf("Status = %q, want %q", status.Status, "good")
+	}
+	if status.Serial.Cmp(leafCert.SerialNumber) != 0 {
+		t.Errorf("Serial number mismatch in status")
+	}
+	if status.ResponderURL != server.URL {
+		t.Errorf("ResponderURL = %q, want %q", status.ResponderURL, server.URL)
+	}
+	if status.NextUpdate.Before(status.ThisUpdate) {
+		t.Errorf("NextUpdate should not be before ThisUpdate")
+	}
+}
+
+func TestCheckCertificateStatusRevoked(t *testing.T) {
+	caCert, caKey, leafCert, _ := testFixtures(t)
+	server := newOCSPTestResponder(t, caCert, caKey, 1)
+	defer server.Close()
+
+	status, err := CheckCertificateStatus(leafCert, caCert, server.URL)
+	if err != nil {
+		t.Fatalf("CheckCertificateStatus failed: %v", err)
+	}
+	if status.Status != "revoked" {
+		t.Errorf("Status = %q, want %q", status.Status, "revoked")
+	}
+}
+
+func TestCheckCertificateStatusAIAFallback(t *testing.T) {
+	caCfg := &cert.CertificateConfig{
+		CommonName:    "Test CA",
+		Organization:  "Test Org",
+		IsCA:          true,
+		MaxPathLength: -1,
+		Validity:      365,
+		KeyType:       "rsa2048",
+	}
+	caCert, caKey, err := cert.GenerateSelfSignedCertificate(caCfg)
+	if err != nil {
+		t.Fatalf("Failed to generate CA: %v", err)
+	}
+
+	server := newOCSPTestResponder(t, caCert, caKey, 0)
+	defer server.Close()
+
+	leafCfg := &cert.CertificateConfig{
+		CommonName:   "aia.example.com",
+		Organization: "Test Org",
+		Validity:     365,
+		KeyType:      "rsa2048",
+		OCSPServer:   []string{server.URL},
+	}
+	leafCert, _, err := cert.GenerateCASignedCertificate(leafCfg, caCfg, caKey, caCert)
+	if err != nil {
+		t.Fatalf("Failed to generate leaf cert: %v", err)
+	}
+	if len(leafCert.OCSPServer) != 1 {
+		t.Fatalf("expected leaf cert to carry an OCSP AIA entry, got %v", leafCert.OCSPServer)
+	}
+
+	// Passing an empty ocspURL must fall back to the certificate's AIA entry.
+	status, err := CheckCertificateStatus(leafCert, caCert, "")
+	if err != nil {
+		t.Fatalf("CheckCertificateStatus failed: %v", err)
+	}
+	if status.ResponderURL != server.URL {
+		t.Errorf("ResponderURL = %q, want AIA URL %q", status.ResponderURL, server.URL)
+	}
+}
+
+func TestCheckCertificateStatusErrors(t *testing.T) {
+	caCert, caKey, leafCert, _ := testFixtures(t)
+	server := newOCSPTestResponder(t, caCert, caKey, 0)
+	defer server.Close()
+
+	badServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer badServer.Close()
+
+	garbageServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("not a valid ocsp response"))
+	}))
+	defer garbageServer.Close()
 
 	tests := []struct {
 		name    string
 		cert    *x509.Certificate
+		issuer  *x509.Certificate
 		ocspURL string
-		wantErr bool
 	}{
-		{
-			name:    "nil certificate",
-			cert:    nil,
-			ocspURL: "http://ocsp.example.com",
-			wantErr: true,
-		},
-		{
-			name:    "empty OCSP URL",
-			cert:    leafCert,
-			ocspURL: "",
-			wantErr: true,
-		},
-		{
-			name:    "valid certificate and URL",
-			cert:    leafCert,
-			ocspURL: "http://ocsp.example.com",
-			wantErr: false,
-		},
+		{name: "nil certificate", cert: nil, issuer: caCert, ocspURL: server.URL},
+		{name: "nil issuer", cert: leafCert, issuer: nil, ocspURL: server.URL},
+		{name: "no url and no AIA", cert: leafCert, issuer: caCert, ocspURL: ""},
+		{name: "non-200 response", cert: leafCert, issuer: caCert, ocspURL: badServer.URL},
+		{name: "unparsable response body", cert: leafCert, issuer: caCert, ocspURL: garbageServer.URL},
+		{name: "unreachable responder", cert: leafCert, issuer: caCert, ocspURL: "http://127.0.0.1:0"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status, err := CheckCertificateStatus(tt.cert, tt.ocspURL)
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("CheckCertificateStatus error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if !tt.wantErr {
-				if status == nil {
-					t.Errorf("Expected non-nil status")
-					return
-				}
-				if status.Serial == nil {
-					t.Errorf("Expected serial number in status")
-				}
-				if status.ResponderURL != tt.ocspURL {
-					t.Errorf("Expected ResponderURL %s, got %s", tt.ocspURL, status.ResponderURL)
-				}
+			if _, err := CheckCertificateStatus(tt.cert, tt.issuer, tt.ocspURL); err == nil {
+				t.Errorf("expected an error, got nil")
 			}
 		})
-	}
-}
-
-func TestOCSPCertificateStatus(t *testing.T) {
-	_, _, leafCert, _ := testFixtures(t)
-
-	status, err := CheckCertificateStatus(leafCert, "http://ocsp.example.com")
-	if err != nil {
-		t.Fatalf("Failed to check certificate status: %v", err)
-	}
-
-	if status.Serial.Cmp(leafCert.SerialNumber) != 0 {
-		t.Errorf("Serial number mismatch in status")
-	}
-
-	if status.NextUpdate.Before(status.ThisUpdate) {
-		t.Errorf("NextUpdate should not be before ThisUpdate")
-	}
-
-	if status.ResponderURL != "http://ocsp.example.com" {
-		t.Errorf("ResponderURL mismatch")
 	}
 }

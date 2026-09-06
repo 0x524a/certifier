@@ -474,10 +474,11 @@ func (m *MenuMode) handleOCSPMenu() {
 		fmt.Println("  1. Create an OCSP request")
 		fmt.Println("  2. Generate an OCSP response")
 		fmt.Println("  3. Verify an OCSP response")
-		fmt.Println("  4. Back to main menu")
+		fmt.Println("  4. Check certificate status via OCSP responder (network)")
+		fmt.Println("  5. Back to main menu")
 		fmt.Println()
 
-		choice, eof := m.promptChoice("Select an option [1-4]: ")
+		choice, eof := m.promptChoice("Select an option [1-5]: ")
 		if eof {
 			return
 		}
@@ -493,6 +494,9 @@ func (m *MenuMode) handleOCSPMenu() {
 			m.promptAndVerifyOCSPResponse()
 			return
 		case "4":
+			m.promptAndCheckOCSPStatus()
+			return
+		case "5":
 			return
 		default:
 			fmt.Println("Invalid choice. Please try again.")
@@ -553,4 +557,21 @@ func (m *MenuMode) promptAndVerifyOCSPResponse() {
 	}
 
 	runCmd(VerifyOCSPResponseCmd([]string{"--response", responseFile, "--cert", certFile, "--ca-cert", caCertFile}))
+}
+
+func (m *MenuMode) promptAndCheckOCSPStatus() {
+	certFile := m.promptLine("Enter certificate file path: ")
+	caCertFile := m.promptLine("Enter CA certificate file path: ")
+	if certFile == "" || caCertFile == "" {
+		fmt.Println("Certificate and CA certificate are required.")
+		return
+	}
+	url := m.promptLine("OCSP responder URL (optional, defaults to the certificate's AIA URL): ")
+
+	args := []string{"--cert", certFile, "--ca-cert", caCertFile}
+	if url != "" {
+		args = append(args, "--url", url)
+	}
+
+	runCmd(CheckOCSPStatusCmd(args))
 }
