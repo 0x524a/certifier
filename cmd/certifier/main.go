@@ -244,7 +244,7 @@ func generateCert(args []string) {
 }
 
 func signCert(args []string) {
-	fmt.Println("Sign certificate command - not yet implemented")
+	cli.SignCert(args)
 }
 
 func viewCert(args []string) {
@@ -252,7 +252,7 @@ func viewCert(args []string) {
 }
 
 func validateCert(args []string) {
-	fmt.Println("Validate certificate command - not yet implemented")
+	cli.ValidateCert(args)
 }
 
 func generateCSR(args []string) {
@@ -260,37 +260,37 @@ func generateCSR(args []string) {
 }
 
 func viewCSR(args []string) {
-	fmt.Println("View CSR command - not yet implemented")
+	cli.ViewCSR(args)
 }
 
 func encodeCert(args []string) {
-	fmt.Println("Encode command - not yet implemented")
+	cli.EncodeCert(args)
 }
 
 func decodeCert(args []string) {
-	fmt.Println("Decode command - not yet implemented")
+	cli.DecodeCert(args)
 }
 
 func generateCRL(args []string) {
-	fmt.Println("Generate CRL command - not yet implemented")
+	cli.GenerateCRL(args)
 }
 
 func viewCRL(args []string) {
-	fmt.Println("View CRL command - not yet implemented")
+	cli.ViewCRL(args)
 }
 
 func checkCRL(args []string) {
-	fmt.Println("Check CRL command - not yet implemented")
+	cli.CheckCRL(args)
 }
 
 func generateOCSPResponse(args []string) {
-	fmt.Println("Generate OCSP response command - not yet implemented")
+	cli.GenerateOCSPResponse(args)
 }
 
 func createOCSPRequest(args []string) {
-	fmt.Println("Create OCSP request command - not yet implemented")
+	cli.CreateOCSPRequest(args)
 }
 
 func verifyOCSPResponse(args []string) {
-	fmt.Println("Verify OCSP response command - not yet implemented")
+	cli.VerifyOCSPResponse(args)
 }

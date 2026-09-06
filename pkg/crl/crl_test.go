@@ -283,6 +283,53 @@ func TestCheckRevocation(t *testing.T) {
 	}
 }
 
+func TestNewKeyPair(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+
+	kp := NewKeyPair(privateKey)
+	if kp == nil {
+		t.Fatal("Expected non-nil keyPair")
+	}
+
+	if kp.PrivateKey != crypto.PrivateKey(privateKey) {
+		t.Errorf("Expected PrivateKey to match the provided key")
+	}
+
+	// Verify it can be used to construct a valid CRLConfig for an external-style caller
+	caCfg := &cert.CertificateConfig{
+		CommonName:    "Test CA",
+		Organization:  "Test Org",
+		IsCA:          true,
+		MaxPathLength: -1,
+		Validity:      365,
+		KeyType:       "rsa2048",
+	}
+
+	caCert, caKey, err := cert.GenerateSelfSignedCertificate(caCfg)
+	if err != nil {
+		t.Fatalf("Failed to generate CA: %v", err)
+	}
+
+	config := &CRLConfig{
+		CAKeyPair:     NewKeyPair(caKey),
+		CACertificate: caCert,
+		ValidityDays:  30,
+		Number:        1,
+	}
+
+	crlBytes, err := GenerateCRL(config)
+	if err != nil {
+		t.Fatalf("GenerateCRL with NewKeyPair failed: %v", err)
+	}
+
+	if len(crlBytes) == 0 {
+		t.Errorf("Expected non-empty CRL bytes")
+	}
+}
+
 func TestRevocationReasonConstants(t *testing.T) {
 	// Verify all revocation reason constants are defined
 	reasons := []int{

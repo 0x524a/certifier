@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 
@@ -765,6 +766,120 @@ func TestValidateCertificateNonCAWithPathLength(t *testing.T) {
 
 	if !hasWarning {
 		t.Error("Expected warning about non-CA cert with path length constraint")
+	}
+}
+
+// TestValidateCertificateChainWithRootCAsSuccess tests successful chain
+// validation via ValidateCertificate when RootCAs are provided.
+func TestValidateCertificateChainWithRootCAsSuccess(t *testing.T) {
+	caCfg := &cert.CertificateConfig{
+		CommonName:    "Test Root CA",
+		Organization:  "Test Org",
+		IsCA:          true,
+		MaxPathLength: -1,
+		Validity:      3650,
+		KeyType:       "rsa2048",
+	}
+
+	caCert, caKey, err := cert.GenerateSelfSignedCertificate(caCfg)
+	if err != nil {
+		t.Fatalf("Failed to generate CA: %v", err)
+	}
+
+	leafCfg := &cert.CertificateConfig{
+		CommonName:   "leaf.example.com",
+		Organization: "Test Org",
+		Validity:     365,
+		DNSNames:     []string{"leaf.example.com"},
+		KeyType:      "rsa2048",
+	}
+
+	leafCert, _, err := cert.GenerateCASignedCertificate(leafCfg, caCfg, caKey, caCert)
+	if err != nil {
+		t.Fatalf("Failed to generate leaf certificate: %v", err)
+	}
+
+	result := ValidateCertificate(leafCert, &cert.ValidationConfig{
+		CheckExpiration: false,
+		RootCAs:         []*x509.Certificate{caCert},
+		DNSName:         "leaf.example.com",
+	})
+
+	if !result.ChainValid {
+		t.Error("Expected ChainValid=true for leaf certificate signed by trusted root")
+	}
+
+	if !result.Valid {
+		t.Errorf("Expected Valid=true, got errors: %v", result.Errors)
+	}
+}
+
+// TestValidateCertificateChainWithRootCAsFailure tests failed chain
+// validation via ValidateCertificate when RootCAs do not include the issuer.
+func TestValidateCertificateChainWithRootCAsFailure(t *testing.T) {
+	caCfg := &cert.CertificateConfig{
+		CommonName:    "Test Root CA",
+		Organization:  "Test Org",
+		IsCA:          true,
+		MaxPathLength: -1,
+		Validity:      3650,
+		KeyType:       "rsa2048",
+	}
+
+	caCert, caKey, err := cert.GenerateSelfSignedCertificate(caCfg)
+	if err != nil {
+		t.Fatalf("Failed to generate CA: %v", err)
+	}
+
+	leafCfg := &cert.CertificateConfig{
+		CommonName:   "leaf.example.com",
+		Organization: "Test Org",
+		Validity:     365,
+		KeyType:      "rsa2048",
+	}
+
+	leafCert, _, err := cert.GenerateCASignedCertificate(leafCfg, caCfg, caKey, caCert)
+	if err != nil {
+		t.Fatalf("Failed to generate leaf certificate: %v", err)
+	}
+
+	// Unrelated CA that did not sign the leaf certificate.
+	unrelatedCACfg := &cert.CertificateConfig{
+		CommonName:    "Unrelated CA",
+		Organization:  "Test Org",
+		IsCA:          true,
+		MaxPathLength: -1,
+		Validity:      3650,
+		KeyType:       "rsa2048",
+	}
+
+	unrelatedCACert, _, err := cert.GenerateSelfSignedCertificate(unrelatedCACfg)
+	if err != nil {
+		t.Fatalf("Failed to generate unrelated CA: %v", err)
+	}
+
+	result := ValidateCertificate(leafCert, &cert.ValidationConfig{
+		CheckExpiration: false,
+		RootCAs:         []*x509.Certificate{unrelatedCACert},
+	})
+
+	if result.ChainValid {
+		t.Error("Expected ChainValid=false for leaf certificate not signed by provided root")
+	}
+
+	if result.Valid {
+		t.Error("Expected Valid=false when chain validation fails")
+	}
+
+	hasChainError := false
+	for _, e := range result.Errors {
+		if strings.HasPrefix(e, "chain validation failed") {
+			hasChainError = true
+			break
+		}
+	}
+	if !hasChainError {
+		t.Errorf("Expected an error about chain validation failure, got: %v", result.Errors)
 	}
 }
 

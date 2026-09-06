@@ -7,4 +7,4 @@ require (
 	software.sslmate.com/src/go-pkcs12 v0.4.0
 )
 
-require golang.org/x/crypto v0.52.0 // indirect
+require golang.org/x/crypto v0.52.0

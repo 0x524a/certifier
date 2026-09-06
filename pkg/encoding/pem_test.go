@@ -2,6 +2,7 @@ package encoding
 
 import (
 	"crypto/x509"
+	"encoding/pem"
 	"testing"
 
 	"github.com/0x524a/certifier/pkg/cert"
@@ -946,6 +947,95 @@ func TestEncodeToPKCS12WithNilPrivateKey(t *testing.T) {
 	}
 	if pfx != nil {
 		t.Error("Expected nil PKCS12 for nil private key")
+	}
+}
+
+// TestEncodeCertificateChainToPEMNoCerts tests calling EncodeCertificateChainToPEM
+// with zero certificates (variadic call with no arguments).
+func TestEncodeCertificateChainToPEMNoCerts(t *testing.T) {
+	chainPEM, err := EncodeCertificateChainToPEM()
+	if err == nil {
+		t.Fatal("Expected error when no certificates are provided")
+	}
+	if chainPEM != nil {
+		t.Error("Expected nil PEM data when no certificates are provided")
+	}
+}
+
+// TestDecodeCertificateChainFromPEMParseError tests a PEM chain containing a
+// well-formed CERTIFICATE block whose DER payload fails x509 parsing.
+func TestDecodeCertificateChainFromPEMParseError(t *testing.T) {
+	badBlock := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: []byte("this is not valid DER certificate data"),
+	})
+
+	chain, err := DecodeCertificateChainFromPEM(badBlock)
+	if err == nil {
+		t.Fatal("Expected error for certificate block with unparsable DER content")
+	}
+	if chain != nil {
+		t.Error("Expected nil chain when a certificate block fails to parse")
+	}
+}
+
+// TestDecodeCertificateChainFromPEMEmptyInput tests decoding empty PEM input.
+func TestDecodeCertificateChainFromPEMEmptyInput(t *testing.T) {
+	chain, err := DecodeCertificateChainFromPEM([]byte{})
+	if err == nil {
+		t.Fatal("Expected error for empty PEM input")
+	}
+	if chain != nil {
+		t.Error("Expected nil chain for empty PEM input")
+	}
+}
+
+// TestDecodeCertificateChainFromPEMMixedBlockTypes tests a PEM stream that mixes
+// a non-CERTIFICATE block (which should be skipped) with a valid certificate.
+func TestDecodeCertificateChainFromPEMMixedBlockTypes(t *testing.T) {
+	config := &cert.CertificateConfig{
+		CommonName: "test.example.com",
+		KeyType:    cert.KeyTypeRSA2048,
+		Validity:   365,
+	}
+
+	certificate, key, err := cert.GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("Failed to generate certificate: %v", err)
+	}
+
+	keyPEM, err := EncodePrivateKeyToPEM(key)
+	if err != nil {
+		t.Fatalf("Failed to encode key: %v", err)
+	}
+
+	certPEM, err := EncodeCertificateToPEM(certificate)
+	if err != nil {
+		t.Fatalf("Failed to encode certificate: %v", err)
+	}
+
+	mixed := append(append([]byte{}, keyPEM...), certPEM...)
+
+	chain, err := DecodeCertificateChainFromPEM(mixed)
+	if err != nil {
+		t.Fatalf("Failed to decode chain with mixed block types: %v", err)
+	}
+
+	if len(chain) != 1 {
+		t.Errorf("Expected 1 certificate (private key block skipped), got %d", len(chain))
+	}
+}
+
+// TestDecodeFromPKCS12CorruptData tests decoding truncated/corrupt PKCS12 data.
+func TestDecodeFromPKCS12CorruptData(t *testing.T) {
+	corrupt := []byte{0x01, 0x02, 0x03, 0x04, 0x05}
+
+	certificate, key, err := DecodeFromPKCS12(corrupt, "any-password")
+	if err == nil {
+		t.Fatal("Expected error for corrupt PKCS12 data")
+	}
+	if certificate != nil || key != nil {
+		t.Error("Expected nil certificate and key for corrupt PKCS12 data")
 	}
 }
 

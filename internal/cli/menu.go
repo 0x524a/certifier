@@ -61,8 +61,13 @@ func (m *MenuMode) displayMainMenuScreen() {
 
 func (m *MenuMode) promptMainMenu() string {
 	fmt.Print("Select an option [1-4, q]: ")
-	input, _ := m.reader.ReadString('\n')
-	return strings.TrimSpace(input)
+	input, err := m.reader.ReadString('\n')
+	choice := strings.TrimSpace(input)
+	if choice == "" && err != nil {
+		// stdin closed/EOF with no data - treat as quit to avoid spinning forever
+		return "q"
+	}
+	return choice
 }
 
 func (m *MenuMode) handleCAMenu() {
@@ -77,8 +82,12 @@ func (m *MenuMode) handleCAMenu() {
 		fmt.Println()
 
 		fmt.Print("Select an option [1-3]: ")
-		input, _ := m.reader.ReadString('\n')
+		input, err := m.reader.ReadString('\n')
 		choice := strings.TrimSpace(input)
+
+		if choice == "" && err != nil {
+			return
+		}
 
 		switch choice {
 		case "1":
@@ -108,8 +117,12 @@ func (m *MenuMode) handleCertMenu() {
 		fmt.Println()
 
 		fmt.Print("Select an option [1-4]: ")
-		input, _ := m.reader.ReadString('\n')
+		input, err := m.reader.ReadString('\n')
 		choice := strings.TrimSpace(input)
+
+		if choice == "" && err != nil {
+			return
+		}
 
 		switch choice {
 		case "1":
@@ -141,8 +154,12 @@ func (m *MenuMode) handleCSRMenu() {
 		fmt.Println()
 
 		fmt.Print("Select an option [1-3]: ")
-		input, _ := m.reader.ReadString('\n')
+		input, err := m.reader.ReadString('\n')
 		choice := strings.TrimSpace(input)
+
+		if choice == "" && err != nil {
+			return
+		}
 
 		switch choice {
 		case "1":
@@ -172,8 +189,12 @@ func (m *MenuMode) handleQuickOptions() {
 		fmt.Println()
 
 		fmt.Print("Select an option [1-4]: ")
-		input, _ := m.reader.ReadString('\n')
+		input, err := m.reader.ReadString('\n')
 		choice := strings.TrimSpace(input)
+
+		if choice == "" && err != nil {
+			return
+		}
 
 		switch choice {
 		case "1":

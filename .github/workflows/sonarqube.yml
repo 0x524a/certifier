@@ -20,12 +20,18 @@ jobs:
           fetch-depth: 0
 
       - name: Download coverage artifact
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11
         continue-on-error: true
         with:
           workflow: lint.yml
           name: coverage-report
           path: .
+          # Pin to the exact commit that triggered this run - without this,
+          # the action falls back to "latest successful lint.yml run
+          # anywhere", which can silently pull another branch's stale
+          # coverage.out and make SonarCloud grade this PR's new code
+          # against the wrong coverage data.
+          commit: ${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha }}
 
       - name: Run tests if coverage not available
         run: |
@@ -35,7 +41,7 @@ jobs:
           go tool cover -func=coverage.out
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v3
+        uses: SonarSource/sonarcloud-github-action@383f7e52eae3ab0510c3cb0e7d9d150bbaeab838
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

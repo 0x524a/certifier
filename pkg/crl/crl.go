@@ -44,6 +44,11 @@ type keyPair struct {
 	PrivateKey crypto.PrivateKey
 }
 
+// NewKeyPair creates a key pair wrapper for use in CRLConfig.CAKeyPair
+func NewKeyPair(privateKey crypto.PrivateKey) *keyPair {
+	return &keyPair{PrivateKey: privateKey}
+}
+
 // GenerateCRL generates a Certificate Revocation List
 func GenerateCRL(config *CRLConfig) ([]byte, error) {
 	if config == nil {

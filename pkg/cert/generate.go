@@ -168,6 +168,68 @@ func GenerateCASignedCertificate(
 	return cert, privateKey, nil
 }
 
+// SignCSR signs a Certificate Signing Request with a CA, producing a certificate
+// that uses the CSR's own public key (unlike GenerateCASignedCertificate, which
+// always generates a fresh key pair).
+func SignCSR(
+	csr *x509.CertificateRequest,
+	caPrivateKey crypto.PrivateKey,
+	caCert *x509.Certificate,
+	validityDays int,
+) (*x509.Certificate, error) {
+	if csr == nil {
+		return nil, fmt.Errorf("CSR is required")
+	}
+	if caPrivateKey == nil {
+		return nil, fmt.Errorf("CA private key is required")
+	}
+	if caCert == nil {
+		return nil, fmt.Errorf("CA certificate is required")
+	}
+
+	sigAlg, err := GetSignatureAlgorithmForKey(caPrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get signature algorithm: %w", err)
+	}
+
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate serial number: %w", err)
+	}
+
+	now := time.Now()
+	validity := 365 * 24 * time.Hour
+	if validityDays > 0 {
+		validity = time.Duration(validityDays) * 24 * time.Hour
+	}
+
+	template := &x509.Certificate{
+		SerialNumber:       serialNumber,
+		Subject:            csr.Subject,
+		NotBefore:          now,
+		NotAfter:           now.Add(validity),
+		DNSNames:           csr.DNSNames,
+		EmailAddresses:     csr.EmailAddresses,
+		IPAddresses:        csr.IPAddresses,
+		SignatureAlgorithm: sigAlg,
+	}
+
+	setDefaultKeyUsage(template, false)
+	setExtendedKeyUsage(template, CertTypeServer, false, nil)
+
+	certBytes, err := x509.CreateCertificate(rand.Reader, template, caCert, csr.PublicKey, caPrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create certificate: %w", err)
+	}
+
+	signedCert, err := x509.ParseCertificate(certBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse certificate: %w", err)
+	}
+
+	return signedCert, nil
+}
+
 // GenerateCSR generates a Certificate Signing Request
 func GenerateCSR(config *CSRConfig) (*x509.CertificateRequest, crypto.PrivateKey, error) {
 	if config == nil {
