@@ -490,12 +490,26 @@ func TestHandleCRLMenuBranches(t *testing.T) {
 }
 
 // TestHandleOCSPMenuBranches covers handleOCSPMenu's request, response,
-// verify, back, invalid-choice, and EOF branches.
+// verify, check-status, back, invalid-choice, and EOF branches.
 func TestHandleOCSPMenuBranches(t *testing.T) {
 	caCertFile, caKeyFile, certFile, _ := createTestOCSPFixtures(t)
 	tmpDir := t.TempDir()
 	requestFile := tmpDir + "/req.der"
 	responseFile := tmpDir + "/resp.der"
+
+	goodResponseFile := tmpDir + "/good.der"
+	if err := GenerateOCSPResponseCmd([]string{
+		"--cert", certFile, "--ca-cert", caCertFile, "--responder-key", caKeyFile,
+		"--status", "good", "--output", goodResponseFile,
+	}); err != nil {
+		t.Fatalf("Failed to generate good response fixture: %v", err)
+	}
+	goodBytes, err := os.ReadFile(goodResponseFile)
+	if err != nil {
+		t.Fatalf("Failed to read good response fixture: %v", err)
+	}
+	server := newStaticOCSPResponder(t, goodBytes)
+	defer server.Close()
 
 	tests := []struct {
 		name  string
@@ -507,8 +521,11 @@ func TestHandleOCSPMenuBranches(t *testing.T) {
 		{name: "response success", input: "2\n" + certFile + "\n" + caCertFile + "\n" + caKeyFile + "\ngood\n" + responseFile + "\n"},
 		{name: "verify missing paths", input: "3\n\n\n\n"},
 		{name: "verify success", input: "3\n" + responseFile + "\n" + certFile + "\n" + caCertFile + "\n"},
-		{name: "back to main menu", input: "4\n"},
-		{name: "invalid then back", input: "invalid\n4\n"},
+		{name: "check missing paths", input: "4\n\n\n"},
+		{name: "check missing url and no AIA", input: "4\n" + certFile + "\n" + caCertFile + "\n\n"},
+		{name: "check success", input: "4\n" + certFile + "\n" + caCertFile + "\n" + server.URL + "\n"},
+		{name: "back to main menu", input: "5\n"},
+		{name: "invalid then back", input: "invalid\n5\n"},
 		{name: "eof with no data", input: ""},
 	}
 

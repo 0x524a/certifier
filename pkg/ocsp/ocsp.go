@@ -1,14 +1,22 @@
 package ocsp
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/x509"
 	"fmt"
+	"io"
 	"math/big"
+	"net/http"
 	"time"
 
 	"golang.org/x/crypto/ocsp"
 )
+
+// ocspHTTPClient is used to POST OCSP requests to responders. A package-level
+// client (rather than http.DefaultClient) keeps the timeout local to this
+// package instead of mutating shared global state.
+var ocspHTTPClient = &http.Client{Timeout: 10 * time.Second}
 
 // OCSPConfig holds configuration for OCSP responder
 type OCSPConfig struct {
@@ -224,29 +232,72 @@ type OCSPCertificateStatus struct {
 	ProducedAt       time.Time
 }
 
-// CheckCertificateStatus checks the status of a certificate via OCSP
+// CheckCertificateStatus checks the status of a certificate by building an OCSP
+// request, POSTing it to the responder, and verifying the signed response
+// against issuer. If ocspURL is empty, the responder URL is taken from cert's
+// Authority Information Access extension (cert.OCSPServer).
 func CheckCertificateStatus(
 	cert *x509.Certificate,
+	issuer *x509.Certificate,
 	ocspURL string,
 ) (*OCSPCertificateStatus, error) {
 	if cert == nil {
 		return nil, fmt.Errorf("certificate is required")
 	}
-	if ocspURL == "" {
-		return nil, fmt.Errorf("OCSP URL is required")
+	if issuer == nil {
+		return nil, fmt.Errorf("issuer certificate is required")
 	}
 
-	// NOTE: This does not perform the network round-trip to the OCSP responder.
-	// A full client implementation would build a request with CreateOCSPRequest,
-	// POST it to ocspURL (Content-Type: application/ocsp-request), and parse the
-	// response with ParseOCSPResponse/VerifyOCSPResponse. That network I/O is not
-	// implemented here.
+	if ocspURL == "" {
+		if len(cert.OCSPServer) == 0 {
+			return nil, fmt.Errorf("OCSP URL is required: no --url given and the certificate has no OCSP AIA entry")
+		}
+		ocspURL = cert.OCSPServer[0]
+	}
+
+	reqBytes, err := CreateOCSPRequest(cert, issuer)
+	if err != nil {
+		return nil, err
+	}
+
+	httpReq, err := http.NewRequest(http.MethodPost, ocspURL, bytes.NewReader(reqBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to build OCSP HTTP request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/ocsp-request")
+	httpReq.Header.Set("Accept", "application/ocsp-response")
+
+	httpResp, err := ocspHTTPClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reach OCSP responder %s: %w", ocspURL, err)
+	}
+	defer func() { _ = httpResp.Body.Close() }()
+
+	if httpResp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("OCSP responder %s returned HTTP %d", ocspURL, httpResp.StatusCode)
+	}
+
+	respBytes, err := io.ReadAll(httpResp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read OCSP response body: %w", err)
+	}
+
+	resp, err := ocsp.ParseResponseForCert(respBytes, cert, issuer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify OCSP response from %s: %w", ocspURL, err)
+	}
+
 	status := &OCSPCertificateStatus{
-		Serial:       cert.SerialNumber,
-		Status:       "unknown",
+		Serial:       resp.SerialNumber,
+		Status:       statusToString(resp.Status),
 		ResponderURL: ocspURL,
-		ThisUpdate:   time.Now(),
-		NextUpdate:   time.Now().Add(7 * 24 * time.Hour),
+		ThisUpdate:   resp.ThisUpdate,
+		NextUpdate:   resp.NextUpdate,
+		ProducedAt:   resp.ProducedAt,
+	}
+	if resp.Status == ocsp.Revoked {
+		status.RevocationTime = resp.RevokedAt
+		status.RevocationReason = fmt.Sprintf("%d", resp.RevocationReason)
 	}
 
 	return status, nil
