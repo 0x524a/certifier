@@ -8,7 +8,41 @@ import (
 	"github.com/0x524a/certifier/pkg/cert"
 )
 
+// testFixtures generates a self-signed CA and a leaf certificate signed by it,
+// returning the CA cert/key and the leaf cert/key for use across OCSP tests.
+func testFixtures(t *testing.T) (caCert *x509.Certificate, caKey interface{}, leafCert *x509.Certificate, leafKey interface{}) {
+	caCfg := &cert.CertificateConfig{
+		CommonName:    "Test CA",
+		Organization:  "Test Org",
+		IsCA:          true,
+		MaxPathLength: -1,
+		Validity:      365,
+		KeyType:       "rsa2048",
+	}
+
+	caCert, caKey, err := cert.GenerateSelfSignedCertificate(caCfg)
+	if err != nil {
+		t.Fatalf("Failed to generate CA: %v", err)
+	}
+
+	leafCfg := &cert.CertificateConfig{
+		CommonName:   "test.example.com",
+		Organization: "Test Org",
+		Validity:     365,
+		KeyType:      "rsa2048",
+	}
+
+	leafCert, leafKey, err = cert.GenerateCASignedCertificate(leafCfg, caCfg, caKey, caCert)
+	if err != nil {
+		t.Fatalf("Failed to generate leaf cert: %v", err)
+	}
+
+	return caCert, caKey, leafCert, leafKey
+}
+
 func TestGenerateOCSPResponse(t *testing.T) {
+	caCert, caKey, leafCert, _ := testFixtures(t)
+
 	tests := []struct {
 		name    string
 		config  *OCSPConfig
@@ -27,157 +61,84 @@ func TestGenerateOCSPResponse(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "valid placeholder config",
+			name: "missing CA certificate",
 			config: &OCSPConfig{
-				Certificate: &x509.Certificate{},
+				Certificate: leafCert,
 			},
-			wantErr: true, // Placeholder returns error
+			wantErr: true,
+		},
+		{
+			name: "missing responder private key",
+			config: &OCSPConfig{
+				Certificate:   leafCert,
+				CACertificate: caCert,
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid status",
+			config: &OCSPConfig{
+				Certificate:         leafCert,
+				CACertificate:       caCert,
+				ResponderPrivateKey: caKey,
+				Status:              99,
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid good response, CA as responder",
+			config: &OCSPConfig{
+				Certificate:         leafCert,
+				CACertificate:       caCert,
+				ResponderPrivateKey: caKey,
+				Status:              0,
+				ThisUpdate:          time.Now(),
+				NextUpdate:          time.Now().Add(7 * 24 * time.Hour),
+			},
+			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := GenerateOCSPResponse(tt.config)
+			respBytes, err := GenerateOCSPResponse(tt.config)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GenerateOCSPResponse error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestParseOCSPResponse(t *testing.T) {
-	tests := []struct {
-		name      string
-		respBytes []byte
-		wantErr   bool
-	}{
-		{
-			name:      "empty response",
-			respBytes: []byte{},
-			wantErr:   true,
-		},
-		{
-			name:      "valid placeholder response",
-			respBytes: []byte("test"),
-			wantErr:   false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := ParseOCSPResponse(tt.respBytes)
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseOCSPResponse error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-
-			if !tt.wantErr && result == nil {
-				t.Errorf("Expected non-nil result")
+			if !tt.wantErr && len(respBytes) == 0 {
+				t.Errorf("Expected non-empty response bytes")
 			}
 		})
 	}
 }
 
-func TestVerifyOCSPResponse(t *testing.T) {
-	caCfg := &cert.CertificateConfig{
-		CommonName:    "Test CA",
-		Organization:  "Test Org",
-		IsCA:          true,
-		MaxPathLength: -1,
-		Validity:      365,
-		KeyType:       "rsa2048",
-	}
+func TestOCSPRequestRoundTrip(t *testing.T) {
+	caCert, _, leafCert, _ := testFixtures(t)
 
-	caCert, caKey, err := cert.GenerateSelfSignedCertificate(caCfg)
+	reqBytes, err := CreateOCSPRequest(leafCert, caCert)
 	if err != nil {
-		t.Fatalf("Failed to generate CA: %v", err)
+		t.Fatalf("CreateOCSPRequest failed: %v", err)
+	}
+	if len(reqBytes) == 0 {
+		t.Fatalf("Expected non-empty request bytes")
 	}
 
-	leafCfg := &cert.CertificateConfig{
-		CommonName:   "test.example.com",
-		Organization: "Test Org",
-		Validity:     365,
-		KeyType:      "rsa2048",
-	}
-
-	leafCert, _, err := cert.GenerateCASignedCertificate(leafCfg, caCfg, caKey, caCert)
+	parsed, err := ParseOCSPRequest(reqBytes)
 	if err != nil {
-		t.Fatalf("Failed to generate leaf cert: %v", err)
+		t.Fatalf("ParseOCSPRequest failed: %v", err)
 	}
 
-	tests := []struct {
-		name      string
-		respBytes []byte
-		cert      *x509.Certificate
-		issuer    *x509.Certificate
-		wantErr   bool
-	}{
-		{
-			name:      "nil certificate",
-			respBytes: []byte("test"),
-			cert:      nil,
-			issuer:    caCert,
-			wantErr:   true,
-		},
-		{
-			name:      "nil issuer",
-			respBytes: []byte("test"),
-			cert:      leafCert,
-			issuer:    nil,
-			wantErr:   true,
-		},
-		{
-			name:      "valid placeholder config",
-			respBytes: []byte("test"),
-			cert:      leafCert,
-			issuer:    caCert,
-			wantErr:   false,
-		},
+	if parsed["serialNumber"] == nil {
+		t.Errorf("Expected serialNumber in parsed request")
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := VerifyOCSPResponse(tt.respBytes, tt.cert, tt.issuer)
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("VerifyOCSPResponse error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if !tt.wantErr && result == nil {
-				t.Errorf("Expected non-nil result")
-			}
-		})
+	if parsed["hashAlgorithm"] == nil {
+		t.Errorf("Expected hashAlgorithm in parsed request")
 	}
 }
 
-func TestCreateOCSPRequest(t *testing.T) {
-	caCfg := &cert.CertificateConfig{
-		CommonName:    "Test CA",
-		Organization:  "Test Org",
-		IsCA:          true,
-		MaxPathLength: -1,
-		Validity:      365,
-		KeyType:       "rsa2048",
-	}
-
-	caCert, caKey, err := cert.GenerateSelfSignedCertificate(caCfg)
-	if err != nil {
-		t.Fatalf("Failed to generate CA: %v", err)
-	}
-
-	leafCfg := &cert.CertificateConfig{
-		CommonName:   "test.example.com",
-		Organization: "Test Org",
-		Validity:     365,
-		KeyType:      "rsa2048",
-	}
-
-	leafCert, _, err := cert.GenerateCASignedCertificate(leafCfg, caCfg, caKey, caCert)
-	if err != nil {
-		t.Fatalf("Failed to generate leaf cert: %v", err)
-	}
+func TestCreateOCSPRequestErrors(t *testing.T) {
+	caCert, _, leafCert, _ := testFixtures(t)
 
 	tests := []struct {
 		name    string
@@ -198,10 +159,10 @@ func TestCreateOCSPRequest(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "valid placeholder config",
+			name:    "valid",
 			cert:    leafCert,
 			issuer:  caCert,
-			wantErr: true, // Placeholder returns error
+			wantErr: false,
 		},
 	}
 
@@ -215,41 +176,212 @@ func TestCreateOCSPRequest(t *testing.T) {
 	}
 }
 
-func TestParseOCSPRequest(t *testing.T) {
+func TestParseOCSPRequestErrors(t *testing.T) {
+	_, err := ParseOCSPRequest([]byte{})
+	if err == nil {
+		t.Errorf("Expected error for empty request bytes")
+	}
+
+	_, err = ParseOCSPRequest([]byte("not a valid der request"))
+	if err == nil {
+		t.Errorf("Expected error for malformed request bytes")
+	}
+}
+
+func TestGenerateAndParseOCSPResponse_Good(t *testing.T) {
+	caCert, caKey, leafCert, _ := testFixtures(t)
+
+	config := &OCSPConfig{
+		Certificate:         leafCert,
+		CACertificate:       caCert,
+		ResponderPrivateKey: caKey,
+		Status:              0,
+		ThisUpdate:          time.Now(),
+		NextUpdate:          time.Now().Add(7 * 24 * time.Hour),
+	}
+
+	respBytes, err := GenerateOCSPResponse(config)
+	if err != nil {
+		t.Fatalf("GenerateOCSPResponse failed: %v", err)
+	}
+
+	result, err := ParseOCSPResponse(respBytes, caCert)
+	if err != nil {
+		t.Fatalf("ParseOCSPResponse failed: %v", err)
+	}
+
+	if result["status"] != "good" {
+		t.Errorf("Expected status 'good', got %v", result["status"])
+	}
+	if result["serialNumber"] == nil {
+		t.Errorf("Expected serialNumber in parsed response")
+	}
+}
+
+func TestGenerateAndParseOCSPResponse_Revoked(t *testing.T) {
+	caCert, caKey, leafCert, _ := testFixtures(t)
+
+	revokedAt := time.Now().Add(-24 * time.Hour)
+	config := &OCSPConfig{
+		Certificate:         leafCert,
+		CACertificate:       caCert,
+		ResponderPrivateKey: caKey,
+		Status:              1,
+		RevocationTime:      revokedAt,
+		RevocationReason:    1, // key compromise
+		ThisUpdate:          time.Now(),
+		NextUpdate:          time.Now().Add(7 * 24 * time.Hour),
+	}
+
+	respBytes, err := GenerateOCSPResponse(config)
+	if err != nil {
+		t.Fatalf("GenerateOCSPResponse failed: %v", err)
+	}
+
+	result, err := ParseOCSPResponse(respBytes, caCert)
+	if err != nil {
+		t.Fatalf("ParseOCSPResponse failed: %v", err)
+	}
+
+	if result["status"] != "revoked" {
+		t.Errorf("Expected status 'revoked', got %v", result["status"])
+	}
+	if result["revokedAt"] == nil {
+		t.Errorf("Expected revokedAt in parsed response")
+	}
+	if result["revocationReason"] != 1 {
+		t.Errorf("Expected revocationReason 1, got %v", result["revocationReason"])
+	}
+}
+
+func TestGenerateAndParseOCSPResponse_Unknown(t *testing.T) {
+	caCert, caKey, leafCert, _ := testFixtures(t)
+
+	config := &OCSPConfig{
+		Certificate:         leafCert,
+		CACertificate:       caCert,
+		ResponderPrivateKey: caKey,
+		Status:              2,
+		ThisUpdate:          time.Now(),
+		NextUpdate:          time.Now().Add(7 * 24 * time.Hour),
+	}
+
+	respBytes, err := GenerateOCSPResponse(config)
+	if err != nil {
+		t.Fatalf("GenerateOCSPResponse failed: %v", err)
+	}
+
+	result, err := ParseOCSPResponse(respBytes, caCert)
+	if err != nil {
+		t.Fatalf("ParseOCSPResponse failed: %v", err)
+	}
+
+	if result["status"] != "unknown" {
+		t.Errorf("Expected status 'unknown', got %v", result["status"])
+	}
+}
+
+func TestParseOCSPResponseErrors(t *testing.T) {
+	caCert, _, _, _ := testFixtures(t)
+
+	_, err := ParseOCSPResponse([]byte{}, caCert)
+	if err == nil {
+		t.Errorf("Expected error for empty response bytes")
+	}
+
+	_, err = ParseOCSPResponse([]byte("test"), nil)
+	if err == nil {
+		t.Errorf("Expected error for nil issuer")
+	}
+
+	_, err = ParseOCSPResponse([]byte("not a valid der response"), caCert)
+	if err == nil {
+		t.Errorf("Expected error for malformed response bytes")
+	}
+}
+
+func TestVerifyOCSPResponse(t *testing.T) {
+	caCert, caKey, leafCert, _ := testFixtures(t)
+
+	config := &OCSPConfig{
+		Certificate:         leafCert,
+		CACertificate:       caCert,
+		ResponderPrivateKey: caKey,
+		Status:              0,
+		ThisUpdate:          time.Now(),
+		NextUpdate:          time.Now().Add(7 * 24 * time.Hour),
+	}
+
+	respBytes, err := GenerateOCSPResponse(config)
+	if err != nil {
+		t.Fatalf("GenerateOCSPResponse failed: %v", err)
+	}
+
 	tests := []struct {
-		name     string
-		reqBytes []byte
-		wantErr  bool
+		name      string
+		respBytes []byte
+		cert      *x509.Certificate
+		issuer    *x509.Certificate
+		wantErr   bool
 	}{
 		{
-			name:     "empty request",
-			reqBytes: []byte{},
-			wantErr:  true,
+			name:      "nil certificate",
+			respBytes: respBytes,
+			cert:      nil,
+			issuer:    caCert,
+			wantErr:   true,
 		},
 		{
-			name:     "valid placeholder request",
-			reqBytes: []byte("test"),
-			wantErr:  false,
+			name:      "nil issuer",
+			respBytes: respBytes,
+			cert:      leafCert,
+			issuer:    nil,
+			wantErr:   true,
+		},
+		{
+			name:      "valid response verifies successfully",
+			respBytes: respBytes,
+			cert:      leafCert,
+			issuer:    caCert,
+			wantErr:   false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ParseOCSPRequest(tt.reqBytes)
+			result, err := VerifyOCSPResponse(tt.respBytes, tt.cert, tt.issuer)
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseOCSPRequest error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("VerifyOCSPResponse error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			if !tt.wantErr && result == nil {
-				t.Errorf("Expected non-nil result")
+			if !tt.wantErr {
+				if result == nil {
+					t.Errorf("Expected non-nil result")
+					return
+				}
+				if result["verified"] != true {
+					t.Errorf("Expected verified=true, got %v", result["verified"])
+				}
+				if result["status"] != "good" {
+					t.Errorf("Expected status 'good', got %v", result["status"])
+				}
 			}
 		})
 	}
 }
 
-func TestCheckCertificateStatus(t *testing.T) {
+func TestVerifyOCSPResponse_WrongCertificate(t *testing.T) {
+	caCert, caKey, leafCert, _ := testFixtures(t)
+
+	// Generate a second, unrelated leaf certificate signed by the same CA.
+	otherCfg := &cert.CertificateConfig{
+		CommonName:   "other.example.com",
+		Organization: "Test Org",
+		Validity:     365,
+		KeyType:      "rsa2048",
+	}
 	caCfg := &cert.CertificateConfig{
 		CommonName:    "Test CA",
 		Organization:  "Test Org",
@@ -258,23 +390,38 @@ func TestCheckCertificateStatus(t *testing.T) {
 		Validity:      365,
 		KeyType:       "rsa2048",
 	}
-
-	caCert, caKey, err := cert.GenerateSelfSignedCertificate(caCfg)
+	otherCert, _, err := cert.GenerateCASignedCertificate(otherCfg, caCfg, caKey, caCert)
 	if err != nil {
-		t.Fatalf("Failed to generate CA: %v", err)
+		t.Fatalf("Failed to generate other cert: %v", err)
 	}
 
-	leafCfg := &cert.CertificateConfig{
-		CommonName:   "test.example.com",
-		Organization: "Test Org",
-		Validity:     365,
-		KeyType:      "rsa2048",
+	config := &OCSPConfig{
+		Certificate:         leafCert,
+		CACertificate:       caCert,
+		ResponderPrivateKey: caKey,
+		Status:              0,
+		ThisUpdate:          time.Now(),
+		NextUpdate:          time.Now().Add(7 * 24 * time.Hour),
 	}
 
-	leafCert, _, err := cert.GenerateCASignedCertificate(leafCfg, caCfg, caKey, caCert)
+	respBytes, err := GenerateOCSPResponse(config)
 	if err != nil {
-		t.Fatalf("Failed to generate leaf cert: %v", err)
+		t.Fatalf("GenerateOCSPResponse failed: %v", err)
 	}
+
+	// The response is for leafCert, not otherCert - verification against
+	// otherCert should fail.
+	result, err := VerifyOCSPResponse(respBytes, otherCert, caCert)
+	if err == nil {
+		t.Errorf("Expected error when verifying response against the wrong certificate")
+	}
+	if result != nil && result["verified"] == true {
+		t.Errorf("Expected verified=false for mismatched certificate")
+	}
+}
+
+func TestCheckCertificateStatus(t *testing.T) {
+	_, _, leafCert, _ := testFixtures(t)
 
 	tests := []struct {
 		name    string
@@ -319,9 +466,6 @@ func TestCheckCertificateStatus(t *testing.T) {
 				if status.Serial == nil {
 					t.Errorf("Expected serial number in status")
 				}
-				if status.Status != "unknown" {
-					t.Errorf("Expected status 'unknown', got %s", status.Status)
-				}
 				if status.ResponderURL != tt.ocspURL {
 					t.Errorf("Expected ResponderURL %s, got %s", tt.ocspURL, status.ResponderURL)
 				}
@@ -331,31 +475,7 @@ func TestCheckCertificateStatus(t *testing.T) {
 }
 
 func TestOCSPCertificateStatus(t *testing.T) {
-	caCfg := &cert.CertificateConfig{
-		CommonName:    "Test CA",
-		Organization:  "Test Org",
-		IsCA:          true,
-		MaxPathLength: -1,
-		Validity:      365,
-		KeyType:       "rsa2048",
-	}
-
-	caCert, caKey, err := cert.GenerateSelfSignedCertificate(caCfg)
-	if err != nil {
-		t.Fatalf("Failed to generate CA: %v", err)
-	}
-
-	leafCfg := &cert.CertificateConfig{
-		CommonName:   "test.example.com",
-		Organization: "Test Org",
-		Validity:     365,
-		KeyType:      "rsa2048",
-	}
-
-	leafCert, _, err := cert.GenerateCASignedCertificate(leafCfg, caCfg, caKey, caCert)
-	if err != nil {
-		t.Fatalf("Failed to generate leaf cert: %v", err)
-	}
+	_, _, leafCert, _ := testFixtures(t)
 
 	status, err := CheckCertificateStatus(leafCert, "http://ocsp.example.com")
 	if err != nil {
@@ -372,73 +492,5 @@ func TestOCSPCertificateStatus(t *testing.T) {
 
 	if status.ResponderURL != "http://ocsp.example.com" {
 		t.Errorf("ResponderURL mismatch")
-	}
-}
-
-func TestOCSPStatusConstants(t *testing.T) {
-	// Verify status values are reasonable
-	statuses := []string{"good", "revoked", "unknown"}
-
-	if len(statuses) == 0 {
-		t.Errorf("Expected at least one status constant")
-	}
-
-	// Verify that status field can be set
-	status := &OCSPCertificateStatus{
-		Status: "unknown",
-	}
-
-	if status.Status != "unknown" {
-		t.Errorf("Expected status 'unknown', got %s", status.Status)
-	}
-}
-
-func TestCheckCertificateStatusDates(t *testing.T) {
-	caCfg := &cert.CertificateConfig{
-		CommonName:    "Test CA",
-		Organization:  "Test Org",
-		IsCA:          true,
-		MaxPathLength: -1,
-		Validity:      365,
-		KeyType:       "rsa2048",
-	}
-
-	caCert, caKey, err := cert.GenerateSelfSignedCertificate(caCfg)
-	if err != nil {
-		t.Fatalf("Failed to generate CA: %v", err)
-	}
-
-	leafCfg := &cert.CertificateConfig{
-		CommonName:   "test.example.com",
-		Organization: "Test Org",
-		Validity:     365,
-		KeyType:      "rsa2048",
-	}
-
-	leafCert, _, err := cert.GenerateCASignedCertificate(leafCfg, caCfg, caKey, caCert)
-	if err != nil {
-		t.Fatalf("Failed to generate leaf cert: %v", err)
-	}
-
-	status, err := CheckCertificateStatus(leafCert, "http://ocsp.example.com")
-	if err != nil {
-		t.Fatalf("Failed to check certificate status: %v", err)
-	}
-
-	// Verify dates are set
-	if status.ThisUpdate.IsZero() {
-		t.Errorf("Expected ThisUpdate to be set")
-	}
-
-	if status.NextUpdate.IsZero() {
-		t.Errorf("Expected NextUpdate to be set")
-	}
-
-	// NextUpdate should be ~7 days after ThisUpdate
-	expectedNextUpdate := status.ThisUpdate.Add(7 * 24 * time.Hour)
-	timeDiff := status.NextUpdate.Sub(expectedNextUpdate).Abs()
-
-	if timeDiff > time.Minute {
-		t.Logf("Warning: NextUpdate time difference from expected: %v", timeDiff)
 	}
 }

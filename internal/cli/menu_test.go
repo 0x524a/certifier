@@ -306,3 +306,123 @@ func TestHandleCertMenuOption2View(t *testing.T) {
 	// Test the promptAndViewCertFile method with empty input
 	m.promptAndViewCertFile()
 }
+
+// runMenuFuncCapturingStdout runs fn with stdout redirected, then restores it
+// and drains the pipe so output doesn't leak into the test run.
+func runMenuFuncCapturingStdout(fn func()) {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	fn()
+
+	_ = w.Close()
+	os.Stdout = old
+	_, _ = io.Copy(io.Discard, r)
+}
+
+// TestHandleCAMenuBackAndInvalid covers handleCAMenu's "back to main menu"
+// branch (case "3") and the default/invalid-choice branch that loops before
+// eventually exiting via a valid choice.
+func TestHandleCAMenuBackAndInvalid(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{name: "back to main menu", input: "3\n"},
+		{name: "invalid then back", input: "invalid\n3\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &MenuMode{reader: bufio.NewReader(strings.NewReader(tt.input))}
+			runMenuFuncCapturingStdout(m.handleCAMenu)
+		})
+	}
+}
+
+// TestHandleCAMenuViewOption covers handleCAMenu's case "2", which delegates
+// to promptAndViewCAFile, for both an empty file path and a valid CA file.
+func TestHandleCAMenuViewOption(t *testing.T) {
+	t.Run("empty path", func(t *testing.T) {
+		m := &MenuMode{reader: bufio.NewReader(strings.NewReader("2\n\n"))}
+		runMenuFuncCapturingStdout(m.handleCAMenu)
+	})
+
+	t.Run("valid ca file", func(t *testing.T) {
+		certFile, _ := createTestCertificate(t)
+		input := "2\n" + certFile + "\n"
+		m := &MenuMode{reader: bufio.NewReader(strings.NewReader(input))}
+		runMenuFuncCapturingStdout(m.handleCAMenu)
+	})
+}
+
+// TestHandleCertMenuBranches covers handleCertMenu's view, validate
+// (not-yet-implemented), back-to-main-menu and invalid-choice branches.
+func TestHandleCertMenuBranches(t *testing.T) {
+	certFile, _ := createTestCertificate(t)
+
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{name: "view with empty path", input: "2\n\n"},
+		{name: "view with valid path", input: "2\n" + certFile + "\n"},
+		{name: "validate not yet implemented", input: "3\n"},
+		{name: "back to main menu", input: "4\n"},
+		{name: "invalid then back", input: "invalid\n4\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &MenuMode{reader: bufio.NewReader(strings.NewReader(tt.input))}
+			runMenuFuncCapturingStdout(m.handleCertMenu)
+		})
+	}
+}
+
+// TestHandleCSRMenuBranches covers handleCSRMenu's view (not-yet-implemented),
+// back-to-main-menu and invalid-choice branches.
+func TestHandleCSRMenuBranches(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{name: "view not yet implemented", input: "2\n"},
+		{name: "back to main menu", input: "3\n"},
+		{name: "invalid then back", input: "invalid\n3\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &MenuMode{reader: bufio.NewReader(strings.NewReader(tt.input))}
+			runMenuFuncCapturingStdout(m.handleCSRMenu)
+		})
+	}
+}
+
+// TestHandleQuickOptionsBranches covers handleQuickOptions's view certificate,
+// the two not-yet-implemented branches, back-to-main-menu, and the
+// invalid-choice branch.
+func TestHandleQuickOptionsBranches(t *testing.T) {
+	certFile, _ := createTestCertificate(t)
+
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{name: "view cert with empty path", input: "1\n\n"},
+		{name: "view cert with valid path", input: "1\n" + certFile + "\n"},
+		{name: "validate not yet implemented", input: "2\n"},
+		{name: "encode/decode not yet implemented", input: "3\n"},
+		{name: "back to main menu", input: "4\n"},
+		{name: "invalid then back", input: "invalid\n4\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &MenuMode{reader: bufio.NewReader(strings.NewReader(tt.input))}
+			runMenuFuncCapturingStdout(m.handleQuickOptions)
+		})
+	}
+}

@@ -1,6 +1,7 @@
 package cert
 
 import (
+	"crypto"
 	"crypto/x509"
 	"net"
 	"testing"
@@ -1367,5 +1368,111 @@ func TestGenerateCASignedCertificateWithMixedKeyTypes(t *testing.T) {
 	// Verify issuer is the ECDSA CA
 	if cert.Issuer.CommonName != caCert.Subject.CommonName {
 		t.Errorf("Expected issuer %s, got %s", caCert.Subject.CommonName, cert.Issuer.CommonName)
+	}
+}
+
+func TestSignCSR(t *testing.T) {
+	caConfig := &CertificateConfig{
+		CommonName:    "Test CA",
+		Country:       "US",
+		Organization:  "Test Org",
+		KeyType:       KeyTypeRSA2048,
+		Validity:      3650,
+		IsCA:          true,
+		MaxPathLength: -1,
+	}
+
+	caCert, caKey, err := GenerateSelfSignedCertificate(caConfig)
+	if err != nil {
+		t.Fatalf("Failed to generate CA certificate: %v", err)
+	}
+
+	csrConfig := &CSRConfig{
+		CommonName:   "csr.example.com",
+		Country:      "US",
+		Organization: "Test Org",
+		KeyType:      KeyTypeRSA2048,
+		DNSNames:     []string{"csr.example.com", "www.csr.example.com"},
+	}
+
+	csr, csrKey, err := GenerateCSR(csrConfig)
+	if err != nil {
+		t.Fatalf("Failed to generate CSR: %v", err)
+	}
+
+	signedCert, err := SignCSR(csr, caKey, caCert, 365)
+	if err != nil {
+		t.Fatalf("Failed to sign CSR: %v", err)
+	}
+
+	if signedCert == nil {
+		t.Fatal("Signed certificate is nil")
+	}
+
+	if signedCert.Subject.CommonName != "csr.example.com" {
+		t.Errorf("Expected CN=csr.example.com, got %s", signedCert.Subject.CommonName)
+	}
+
+	if signedCert.Issuer.String() != caCert.Subject.String() {
+		t.Error("Certificate issuer does not match CA subject")
+	}
+
+	if len(signedCert.DNSNames) != 2 {
+		t.Errorf("Expected 2 DNS names, got %d", len(signedCert.DNSNames))
+	}
+
+	// Critically: the signed certificate must carry the CSR's own public key,
+	// not a freshly generated one.
+	csrPubKey, err := GetPublicKey(csrKey)
+	if err != nil {
+		t.Fatalf("Failed to get CSR public key: %v", err)
+	}
+	eq, ok := signedCert.PublicKey.(interface{ Equal(crypto.PublicKey) bool })
+	if !ok || !eq.Equal(csrPubKey) {
+		t.Error("Signed certificate public key does not match the CSR's public key")
+	}
+
+	if err := signedCert.CheckSignatureFrom(caCert); err != nil {
+		t.Errorf("Signature verification against CA failed: %v", err)
+	}
+
+	if !signedCert.NotBefore.Before(signedCert.NotAfter) {
+		t.Error("NotBefore should be before NotAfter")
+	}
+}
+
+func TestSignCSRErrors(t *testing.T) {
+	caConfig := &CertificateConfig{
+		CommonName:    "Test CA",
+		KeyType:       KeyTypeRSA2048,
+		Validity:      3650,
+		IsCA:          true,
+		MaxPathLength: -1,
+	}
+	caCert, caKey, err := GenerateSelfSignedCertificate(caConfig)
+	if err != nil {
+		t.Fatalf("Failed to generate CA certificate: %v", err)
+	}
+
+	csr, _, err := GenerateCSR(&CSRConfig{CommonName: "example.com", KeyType: KeyTypeRSA2048})
+	if err != nil {
+		t.Fatalf("Failed to generate CSR: %v", err)
+	}
+
+	if _, err := SignCSR(nil, caKey, caCert, 365); err == nil {
+		t.Error("Expected error for nil CSR")
+	}
+
+	if _, err := SignCSR(csr, nil, caCert, 365); err == nil {
+		t.Error("Expected error for nil CA private key")
+	}
+
+	if _, err := SignCSR(csr, caKey, nil, 365); err == nil {
+		t.Error("Expected error for nil CA certificate")
+	}
+
+	// validityDays <= 0 should fall back to the default validity rather than error
+	if _, err := SignCSR(csr, caKey, caCert, 0); err != nil {
+		t.Errorf("Expected default validity fallback, got error: %v", err)
 	}
 }

@@ -7,7 +7,7 @@
 *.dll
 *.so
 *.dylib
-certifier
+/certifier
 bin/certifier
 
 # Test binary, built with `go test -c`
