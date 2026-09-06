@@ -26,6 +26,12 @@ jobs:
           workflow: lint.yml
           name: coverage-report
           path: .
+          # Pin to the exact commit that triggered this run - without this,
+          # the action falls back to "latest successful lint.yml run
+          # anywhere", which can silently pull another branch's stale
+          # coverage.out and make SonarCloud grade this PR's new code
+          # against the wrong coverage data.
+          commit: ${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha }}
 
       - name: Run tests if coverage not available
         run: |
