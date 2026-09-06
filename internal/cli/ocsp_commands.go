@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"crypto/x509"
 	"flag"
 	"fmt"
 	"os"
@@ -8,6 +9,30 @@ import (
 	"github.com/0x524a/certifier/pkg/encoding"
 	"github.com/0x524a/certifier/pkg/ocsp"
 )
+
+// loadCertAndIssuer reads and decodes the PEM certificate at certFile and the
+// PEM issuer certificate at caCertFile, in that order.
+func loadCertAndIssuer(certFile, caCertFile string) (certificate, issuer *x509.Certificate, err error) {
+	certPEM, err := os.ReadFile(certFile)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error reading certificate file: %w", err)
+	}
+	certificate, err = encoding.DecodeCertificateFromPEM(certPEM)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error parsing certificate: %w", err)
+	}
+
+	caCertPEM, err := os.ReadFile(caCertFile)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error reading CA certificate: %w", err)
+	}
+	issuer, err = encoding.DecodeCertificateFromPEM(caCertPEM)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error parsing CA certificate: %w", err)
+	}
+
+	return certificate, issuer, nil
+}
 
 // GenerateOCSPResponseCmd generates an OCSP response and returns an error instead of exiting
 func GenerateOCSPResponseCmd(args []string) error {
@@ -34,22 +59,9 @@ func GenerateOCSPResponseCmd(args []string) error {
 		return fmt.Errorf("responder private key file (--responder-key) is required")
 	}
 
-	certPEM, err := os.ReadFile(*certFile)
+	certificate, caCert, err := loadCertAndIssuer(*certFile, *caCertFile)
 	if err != nil {
-		return fmt.Errorf("error reading certificate file: %w", err)
-	}
-	certificate, err := encoding.DecodeCertificateFromPEM(certPEM)
-	if err != nil {
-		return fmt.Errorf("error parsing certificate: %w", err)
-	}
-
-	caCertPEM, err := os.ReadFile(*caCertFile)
-	if err != nil {
-		return fmt.Errorf("error reading CA certificate: %w", err)
-	}
-	caCert, err := encoding.DecodeCertificateFromPEM(caCertPEM)
-	if err != nil {
-		return fmt.Errorf("error parsing CA certificate: %w", err)
+		return err
 	}
 
 	responderCertificate := caCert
@@ -129,22 +141,9 @@ func CreateOCSPRequestCmd(args []string) error {
 		return fmt.Errorf("CA certificate file (--ca-cert) is required")
 	}
 
-	certPEM, err := os.ReadFile(*certFile)
+	certificate, caCert, err := loadCertAndIssuer(*certFile, *caCertFile)
 	if err != nil {
-		return fmt.Errorf("error reading certificate file: %w", err)
-	}
-	certificate, err := encoding.DecodeCertificateFromPEM(certPEM)
-	if err != nil {
-		return fmt.Errorf("error parsing certificate: %w", err)
-	}
-
-	caCertPEM, err := os.ReadFile(*caCertFile)
-	if err != nil {
-		return fmt.Errorf("error reading CA certificate: %w", err)
-	}
-	caCert, err := encoding.DecodeCertificateFromPEM(caCertPEM)
-	if err != nil {
-		return fmt.Errorf("error parsing CA certificate: %w", err)
+		return err
 	}
 
 	reqBytes, err := ocsp.CreateOCSPRequest(certificate, caCert)
@@ -196,22 +195,9 @@ func VerifyOCSPResponseCmd(args []string) error {
 		return fmt.Errorf("error reading OCSP response file: %w", err)
 	}
 
-	certPEM, err := os.ReadFile(*certFile)
+	certificate, caCert, err := loadCertAndIssuer(*certFile, *caCertFile)
 	if err != nil {
-		return fmt.Errorf("error reading certificate file: %w", err)
-	}
-	certificate, err := encoding.DecodeCertificateFromPEM(certPEM)
-	if err != nil {
-		return fmt.Errorf("error parsing certificate: %w", err)
-	}
-
-	caCertPEM, err := os.ReadFile(*caCertFile)
-	if err != nil {
-		return fmt.Errorf("error reading CA certificate: %w", err)
-	}
-	caCert, err := encoding.DecodeCertificateFromPEM(caCertPEM)
-	if err != nil {
-		return fmt.Errorf("error parsing CA certificate: %w", err)
+		return err
 	}
 
 	result, err := ocsp.VerifyOCSPResponse(respBytes, certificate, caCert)
@@ -264,22 +250,9 @@ func CheckOCSPStatusCmd(args []string) error {
 		return fmt.Errorf("CA certificate file (--ca-cert) is required")
 	}
 
-	certPEM, err := os.ReadFile(*certFile)
+	certificate, caCert, err := loadCertAndIssuer(*certFile, *caCertFile)
 	if err != nil {
-		return fmt.Errorf("error reading certificate file: %w", err)
-	}
-	certificate, err := encoding.DecodeCertificateFromPEM(certPEM)
-	if err != nil {
-		return fmt.Errorf("error parsing certificate: %w", err)
-	}
-
-	caCertPEM, err := os.ReadFile(*caCertFile)
-	if err != nil {
-		return fmt.Errorf("error reading CA certificate: %w", err)
-	}
-	caCert, err := encoding.DecodeCertificateFromPEM(caCertPEM)
-	if err != nil {
-		return fmt.Errorf("error parsing CA certificate: %w", err)
+		return err
 	}
 
 	status, err := ocsp.CheckCertificateStatus(certificate, caCert, *url)
