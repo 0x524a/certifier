@@ -191,6 +191,7 @@ func GenerateCertCmd(args []string) error {
 	dnsNames := cmd.String("dns", "", "DNS names (comma-separated)")
 	ipAddrs := cmd.String("ip", "", "IP addresses (comma-separated)")
 	extKeyUsageOIDs := cmd.String("ext-oid", "", "Extended key usage OIDs (comma-separated)")
+	ocspURLs := cmd.String("ocsp-url", "", "OCSP responder URL(s) for the certificate's AIA extension (comma-separated)")
 	caCertFile := cmd.String("ca-cert", "", "CA certificate file (for signing)")
 	caKeyFile := cmd.String("ca-key", "", "CA private key file (for signing)")
 	certOutput := cmd.String("output", "cert.crt", "Output certificate file")
@@ -237,6 +238,14 @@ func GenerateCertCmd(args []string) error {
 		}
 	}
 
+	var ocspURLsList []string
+	if *ocspURLs != "" {
+		ocspURLsList = strings.Split(*ocspURLs, ",")
+		for i, url := range ocspURLsList {
+			ocspURLsList[i] = strings.TrimSpace(url)
+		}
+	}
+
 	var caCert *x509.Certificate
 	var caPrivateKey interface{}
 
@@ -275,6 +284,7 @@ func GenerateCertCmd(args []string) error {
 		DNSNames:             dnsNamesList,
 		IPAddresses:          ipAddrsList,
 		ExtendedKeyUsageOIDs: extOIDsList,
+		OCSPServer:           ocspURLsList,
 	}
 
 	var certificate *x509.Certificate

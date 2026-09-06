@@ -2837,6 +2837,45 @@ func TestGenerateCertCmdWithExtendedKeyUsage(t *testing.T) {
 	}
 }
 
+// TestGenerateCertCmdWithOCSPURL tests that --ocsp-url populates the
+// certificate's Authority Information Access OCSP entries.
+func TestGenerateCertCmdWithOCSPURL(t *testing.T) {
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "cert-ocsp.crt")
+	keyFile := filepath.Join(tmpDir, "cert-ocsp.key")
+
+	args := []string{
+		"-cn", "example.com",
+		"-output", certFile,
+		"-key-output", keyFile,
+		"-non-interactive",
+		"-ocsp-url", "http://ocsp.example.com/, http://ocsp2.example.com/",
+	}
+
+	if err := GenerateCertCmd(args); err != nil {
+		t.Fatalf("GenerateCertCmd failed: %v", err)
+	}
+
+	certPEM, err := os.ReadFile(certFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated certificate: %v", err)
+	}
+	certificate, err := encoding.DecodeCertificateFromPEM(certPEM)
+	if err != nil {
+		t.Fatalf("Failed to decode generated certificate: %v", err)
+	}
+
+	want := []string{"http://ocsp.example.com/", "http://ocsp2.example.com/"}
+	if len(certificate.OCSPServer) != len(want) {
+		t.Fatalf("OCSPServer = %v, want %v", certificate.OCSPServer, want)
+	}
+	for i, url := range want {
+		if certificate.OCSPServer[i] != url {
+			t.Errorf("OCSPServer[%d] = %q, want %q", i, certificate.OCSPServer[i], url)
+		}
+	}
+}
+
 // TestViewCertCmdSuccessOutput tests ViewCertCmd outputs certificate details
 func TestViewCertCmdSuccessOutput(t *testing.T) {
 	tmpDir := t.TempDir()
