@@ -18,15 +18,19 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
-	defer os.RemoveAll(tmpDir)
 
 	certifierBinary = filepath.Join(tmpDir, "certifier")
 	build := exec.Command("go", "build", "-o", certifierBinary, ".")
 	if out, err := build.CombinedOutput(); err != nil {
+		_ = os.RemoveAll(tmpDir)
 		panic("failed to build certifier binary: " + err.Error() + "\n" + string(out))
 	}
 
-	os.Exit(m.Run())
+	// os.Exit skips deferred calls, so cleanup must happen before calling it
+	// rather than via defer.
+	code := m.Run()
+	_ = os.RemoveAll(tmpDir)
+	os.Exit(code)
 }
 
 // runResult captures the outcome of running the certifier binary.
