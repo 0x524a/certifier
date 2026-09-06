@@ -357,8 +357,8 @@ func TestHandleCAMenuViewOption(t *testing.T) {
 	})
 }
 
-// TestHandleCertMenuBranches covers handleCertMenu's view, validate
-// (not-yet-implemented), back-to-main-menu and invalid-choice branches.
+// TestHandleCertMenuBranches covers handleCertMenu's view, validate,
+// back-to-main-menu and invalid-choice branches.
 func TestHandleCertMenuBranches(t *testing.T) {
 	certFile, _ := createTestCertificate(t)
 
@@ -368,7 +368,8 @@ func TestHandleCertMenuBranches(t *testing.T) {
 	}{
 		{name: "view with empty path", input: "2\n\n"},
 		{name: "view with valid path", input: "2\n" + certFile + "\n"},
-		{name: "validate not yet implemented", input: "3\n"},
+		{name: "validate with empty path", input: "3\n\n"},
+		{name: "validate with valid path", input: "3\n" + certFile + "\n\n\n"},
 		{name: "back to main menu", input: "4\n"},
 		{name: "invalid then back", input: "invalid\n4\n"},
 	}
@@ -381,14 +382,15 @@ func TestHandleCertMenuBranches(t *testing.T) {
 	}
 }
 
-// TestHandleCSRMenuBranches covers handleCSRMenu's view (not-yet-implemented),
-// back-to-main-menu and invalid-choice branches.
+// TestHandleCSRMenuBranches covers handleCSRMenu's view, back-to-main-menu
+// and invalid-choice branches.
 func TestHandleCSRMenuBranches(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
 	}{
-		{name: "view not yet implemented", input: "2\n"},
+		{name: "view with empty path", input: "2\n\n"},
+		{name: "view with nonexistent path", input: "2\n/nonexistent.csr\n"},
 		{name: "back to main menu", input: "3\n"},
 		{name: "invalid then back", input: "invalid\n3\n"},
 	}
@@ -402,8 +404,7 @@ func TestHandleCSRMenuBranches(t *testing.T) {
 }
 
 // TestHandleQuickOptionsBranches covers handleQuickOptions's view certificate,
-// the two not-yet-implemented branches, back-to-main-menu, and the
-// invalid-choice branch.
+// validate, encode/decode, back-to-main-menu, and invalid-choice branches.
 func TestHandleQuickOptionsBranches(t *testing.T) {
 	certFile, _ := createTestCertificate(t)
 
@@ -413,8 +414,8 @@ func TestHandleQuickOptionsBranches(t *testing.T) {
 	}{
 		{name: "view cert with empty path", input: "1\n\n"},
 		{name: "view cert with valid path", input: "1\n" + certFile + "\n"},
-		{name: "validate not yet implemented", input: "2\n"},
-		{name: "encode/decode not yet implemented", input: "3\n"},
+		{name: "validate with empty path", input: "2\n\n"},
+		{name: "encode/decode back", input: "3\n3\n"},
 		{name: "back to main menu", input: "4\n"},
 		{name: "invalid then back", input: "invalid\n4\n"},
 	}
@@ -424,5 +425,123 @@ func TestHandleQuickOptionsBranches(t *testing.T) {
 			m := &MenuMode{reader: bufio.NewReader(strings.NewReader(tt.input))}
 			runMenuFuncCapturingStdout(m.handleQuickOptions)
 		})
+	}
+}
+
+// TestHandleEncodeDecodeMenuBranches covers handleEncodeDecodeMenu's encode,
+// decode, back, invalid-choice, and EOF branches.
+func TestHandleEncodeDecodeMenuBranches(t *testing.T) {
+	certFile, keyFile := createTestCertificate(t)
+	tmpDir := t.TempDir()
+	derFile := tmpDir + "/out.der"
+	pfxFile := tmpDir + "/out.pfx"
+	roundtripFile := tmpDir + "/roundtrip.crt"
+
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{name: "encode to der", input: "1\n" + certFile + "\n" + derFile + "\nder\n"},
+		{name: "encode to pkcs12", input: "1\n" + certFile + "\n" + pfxFile + "\npkcs12\n" + keyFile + "\nchangeit\n"},
+		{name: "encode missing input", input: "1\n\n"},
+		{name: "decode der roundtrip", input: "2\n" + derFile + "\n" + roundtripFile + "\nder\n"},
+		{name: "decode missing input", input: "2\n\n"},
+		{name: "back to parent menu", input: "3\n"},
+		{name: "invalid then back", input: "invalid\n3\n"},
+		{name: "eof with no data", input: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &MenuMode{reader: bufio.NewReader(strings.NewReader(tt.input))}
+			runMenuFuncCapturingStdout(m.handleEncodeDecodeMenu)
+		})
+	}
+}
+
+// TestHandleCRLMenuBranches covers handleCRLMenu's generate, view, check,
+// back, invalid-choice, and EOF branches.
+func TestHandleCRLMenuBranches(t *testing.T) {
+	caCertFile, caKeyFile, certFile, _ := createTestOCSPFixtures(t)
+	tmpDir := t.TempDir()
+	crlFile := tmpDir + "/test.crl"
+
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{name: "generate missing ca cert", input: "1\n\n\n"},
+		{name: "generate success", input: "1\n" + caCertFile + "\n" + caKeyFile + "\n" + crlFile + "\n1,2,3\n"},
+		{name: "view missing path", input: "2\n\n"},
+		{name: "view success", input: "2\n" + crlFile + "\n"},
+		{name: "check missing paths", input: "3\n\n\n"},
+		{name: "check success", input: "3\n" + crlFile + "\n" + certFile + "\n"},
+		{name: "back to main menu", input: "4\n"},
+		{name: "invalid then back", input: "invalid\n4\n"},
+		{name: "eof with no data", input: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &MenuMode{reader: bufio.NewReader(strings.NewReader(tt.input))}
+			runMenuFuncCapturingStdout(m.handleCRLMenu)
+		})
+	}
+}
+
+// TestHandleOCSPMenuBranches covers handleOCSPMenu's request, response,
+// verify, back, invalid-choice, and EOF branches.
+func TestHandleOCSPMenuBranches(t *testing.T) {
+	caCertFile, caKeyFile, certFile, _ := createTestOCSPFixtures(t)
+	tmpDir := t.TempDir()
+	requestFile := tmpDir + "/req.der"
+	responseFile := tmpDir + "/resp.der"
+
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{name: "request missing paths", input: "1\n\n\n"},
+		{name: "request success", input: "1\n" + certFile + "\n" + caCertFile + "\n" + requestFile + "\n"},
+		{name: "response missing paths", input: "2\n\n\n\n"},
+		{name: "response success", input: "2\n" + certFile + "\n" + caCertFile + "\n" + caKeyFile + "\ngood\n" + responseFile + "\n"},
+		{name: "verify missing paths", input: "3\n\n\n\n"},
+		{name: "verify success", input: "3\n" + responseFile + "\n" + certFile + "\n" + caCertFile + "\n"},
+		{name: "back to main menu", input: "4\n"},
+		{name: "invalid then back", input: "invalid\n4\n"},
+		{name: "eof with no data", input: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &MenuMode{reader: bufio.NewReader(strings.NewReader(tt.input))}
+			runMenuFuncCapturingStdout(m.handleOCSPMenu)
+		})
+	}
+}
+
+// TestDisplayMainMenuScreenListsAllSections verifies the main menu screen
+// text includes the CRL and OCSP sections added alongside CA/Cert/CSR/Quick.
+func TestDisplayMainMenuScreenListsAllSections(t *testing.T) {
+	m := NewMenuMode()
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	m.displayMainMenuScreen()
+
+	_ = w.Close()
+	os.Stdout = old
+
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, r)
+	output := buf.String()
+
+	if !strings.Contains(output, "Certificate Revocation List (CRL) Operations") {
+		t.Errorf("Menu screen missing CRL operations option")
+	}
+	if !strings.Contains(output, "OCSP Operations") {
+		t.Errorf("Menu screen missing OCSP operations option")
 	}
 }
