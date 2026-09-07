@@ -176,6 +176,19 @@ func GenerateCA(args []string) {
 	}
 }
 
+// splitAndTrimCSV splits s on commas and trims whitespace from each part,
+// returning nil for an empty s.
+func splitAndTrimCSV(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	for i, part := range parts {
+		parts[i] = strings.TrimSpace(part)
+	}
+	return parts
+}
+
 // GenerateCertCmd generates a certificate and returns an error instead of exiting
 func GenerateCertCmd(args []string) error {
 	cmd := flag.NewFlagSet("cert generate", flag.ContinueOnError)
@@ -191,6 +204,7 @@ func GenerateCertCmd(args []string) error {
 	dnsNames := cmd.String("dns", "", "DNS names (comma-separated)")
 	ipAddrs := cmd.String("ip", "", "IP addresses (comma-separated)")
 	extKeyUsageOIDs := cmd.String("ext-oid", "", "Extended key usage OIDs (comma-separated)")
+	ocspURLs := cmd.String("ocsp-url", "", "OCSP responder URL(s) for the certificate's AIA extension (comma-separated)")
 	caCertFile := cmd.String("ca-cert", "", "CA certificate file (for signing)")
 	caKeyFile := cmd.String("ca-key", "", "CA private key file (for signing)")
 	certOutput := cmd.String("output", "cert.crt", "Output certificate file")
@@ -237,6 +251,8 @@ func GenerateCertCmd(args []string) error {
 		}
 	}
 
+	ocspURLsList := splitAndTrimCSV(*ocspURLs)
+
 	var caCert *x509.Certificate
 	var caPrivateKey interface{}
 
@@ -275,6 +291,7 @@ func GenerateCertCmd(args []string) error {
 		DNSNames:             dnsNamesList,
 		IPAddresses:          ipAddrsList,
 		ExtendedKeyUsageOIDs: extOIDsList,
+		OCSPServer:           ocspURLsList,
 	}
 
 	var certificate *x509.Certificate
