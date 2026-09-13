@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -32,5 +33,12 @@ func TestRootCommandRoutesToCAGroup(t *testing.T) {
 	err := RootCommand().Run(context.Background(), []string{"certifier", "ca", "bogus-subcommand"})
 	if !errors.Is(err, ErrSilent) {
 		t.Errorf("err = %v, want ErrSilent (routed through to the ca group's own dispatch)", err)
+	}
+}
+
+func TestRootCommandBadFlagOnDirectlyRegisteredLeaf(t *testing.T) {
+	err := RootCommand().Run(context.Background(), []string{"certifier", "encode", "--bogus", "x"})
+	if err == nil || !strings.HasPrefix(err.Error(), "error parsing flags: ") {
+		t.Errorf("err = %v, want prefix %q", err, "error parsing flags: ")
 	}
 }

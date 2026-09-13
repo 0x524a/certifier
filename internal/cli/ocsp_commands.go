@@ -338,10 +338,10 @@ func ocspCommand() *cliv3.Command {
 	return &cliv3.Command{
 		Name: "ocsp",
 		Commands: []*cliv3.Command{
-			ocspResponseCommand(),
-			ocspRequestCommand(),
-			ocspVerifyCommand(),
-			ocspCheckCommand(),
+			wrapParseErrors(ocspResponseCommand()),
+			wrapParseErrors(ocspRequestCommand()),
+			wrapParseErrors(ocspVerifyCommand()),
+			wrapParseErrors(ocspCheckCommand()),
 		},
 		SkipFlagParsing: true,
 		Action: func(ctx context.Context, cmd *cliv3.Command) error {

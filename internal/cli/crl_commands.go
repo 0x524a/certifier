@@ -247,9 +247,9 @@ func crlCommand() *cliv3.Command {
 	return &cliv3.Command{
 		Name: "crl",
 		Commands: []*cliv3.Command{
-			crlGenerateCommand(),
-			crlViewCommand(),
-			crlCheckCommand(),
+			wrapParseErrors(crlGenerateCommand()),
+			wrapParseErrors(crlViewCommand()),
+			wrapParseErrors(crlCheckCommand()),
 		},
 		SkipFlagParsing: true,
 		Action: func(ctx context.Context, cmd *cliv3.Command) error {

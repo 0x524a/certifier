@@ -439,10 +439,10 @@ func certCommand() *cliv3.Command {
 	return &cliv3.Command{
 		Name: "cert",
 		Commands: []*cliv3.Command{
-			certGenerateCommand(),
-			certSignCommand(),
-			certViewCommand(),
-			certValidateCommand(),
+			wrapParseErrors(certGenerateCommand()),
+			wrapParseErrors(certSignCommand()),
+			wrapParseErrors(certViewCommand()),
+			wrapParseErrors(certValidateCommand()),
 		},
 		SkipFlagParsing: true,
 		Action: func(ctx context.Context, cmd *cliv3.Command) error {
@@ -459,7 +459,7 @@ func certCommand() *cliv3.Command {
 func csrCommand() *cliv3.Command {
 	return &cliv3.Command{
 		Name:            "csr",
-		Commands:        []*cliv3.Command{csrGenerateCommand(), csrViewCommand()},
+		Commands:        []*cliv3.Command{wrapParseErrors(csrGenerateCommand()), wrapParseErrors(csrViewCommand())},
 		SkipFlagParsing: true,
 		Action: func(ctx context.Context, cmd *cliv3.Command) error {
 			args := cmd.Args().Slice()

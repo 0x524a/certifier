@@ -43,3 +43,15 @@ func runLeafCommand(cmd *cliv3.Command, args []string) error {
 	}
 	return err
 }
+
+// wrapParseErrors installs the same flag-parsing error translation
+// runLeafCommand applies, directly onto cmd, so a leaf command reached
+// through the real command tree (not just through its XxxCmd wrapper)
+// also reports a flag-parsing failure as "error parsing flags: %w"
+// instead of urfave/cli's own "Incorrect Usage: ..." banner.
+func wrapParseErrors(cmd *cliv3.Command) *cliv3.Command {
+	cmd.OnUsageError = func(ctx context.Context, c *cliv3.Command, err error, isSubcommand bool) error {
+		return fmt.Errorf("error parsing flags: %w", err)
+	}
+	return cmd
+}

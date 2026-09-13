@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -62,5 +63,12 @@ func TestCACommandViewSubcommand(t *testing.T) {
 
 	if err := caCommand().Run(context.Background(), []string{"ca", "view", "--cert", certOut}); err != nil {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestCACommandBadFlagThroughTree(t *testing.T) {
+	err := caCommand().Run(context.Background(), []string{"ca", "generate", "--bogus", "x"})
+	if err == nil || !strings.HasPrefix(err.Error(), "error parsing flags: ") {
+		t.Errorf("err = %v, want prefix %q", err, "error parsing flags: ")
 	}
 }

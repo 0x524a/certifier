@@ -641,7 +641,7 @@ func ViewCACmd(args []string) error {
 func caCommand() *cliv3.Command {
 	return &cliv3.Command{
 		Name:            "ca",
-		Commands:        []*cliv3.Command{caGenerateCommand(), caViewCommand()},
+		Commands:        []*cliv3.Command{wrapParseErrors(caGenerateCommand()), wrapParseErrors(caViewCommand())},
 		SkipFlagParsing: true,
 		Action: func(ctx context.Context, cmd *cliv3.Command) error {
 			args := cmd.Args().Slice()
