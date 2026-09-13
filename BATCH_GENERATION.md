@@ -47,10 +47,10 @@ certifier cert --cn "Module Signer" \
   --key-output module-signer.key \
   --non-interactive
 
-# Multiple custom OIDs
+# Multiple custom OIDs (comma-separated - the flag takes one value,
+# so repeating --ext-oid does not accumulate, it just overwrites)
 certifier cert --cn "Multi-Purpose Signer" \
-  --ext-oid "2.5.29.37.0" \
-  --ext-oid "1.3.6.1.4.1.57453.1.1" \
+  --ext-oid "2.5.29.37.0,1.3.6.1.4.1.57453.1.1" \
   --output multi-signer.crt \
   --key-output multi-signer.key \
   --non-interactive

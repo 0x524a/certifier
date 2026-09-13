@@ -9,21 +9,12 @@ import (
 )
 
 func TestGeneratePrivateKeyErrorHandling(t *testing.T) {
-	// Test that invalid key type defaults to RSA 2048
+	// An unrecognized key type must fail loudly rather than silently
+	// falling back to RSA 2048 - a typo in --key-type should not produce
+	// a certificate with an unexpected key type.
 	key, err := GeneratePrivateKey("invalid-type")
-	if err != nil {
-		t.Fatalf("GeneratePrivateKey failed for invalid type: %v", err)
-	}
-
-	// Verify it's an RSA key
-	rsaKey, ok := key.(*rsa.PrivateKey)
-	if !ok {
-		t.Errorf("Expected RSA key for invalid key type, got %T", key)
-		return
-	}
-
-	if rsaKey.N.BitLen() != 2048 {
-		t.Errorf("Expected RSA 2048, got %d bits", rsaKey.N.BitLen())
+	if err == nil {
+		t.Fatalf("expected error for invalid key type, got key %T with no error", key)
 	}
 }
 

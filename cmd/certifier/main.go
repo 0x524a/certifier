@@ -203,6 +203,8 @@ func handleCRLCommand() {
 		viewCRL(os.Args[3:])
 	case "check":
 		checkCRL(os.Args[3:])
+	case "-h", "--help":
+		fmt.Println("Usage: certifier crl <generate|view|check> [options]")
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown crl subcommand: %s\n", subcommand)
 		os.Exit(1)
@@ -226,6 +228,8 @@ func handleOCSPCommand() {
 		verifyOCSPResponse(os.Args[3:])
 	case "check":
 		checkOCSPStatus(os.Args[3:])
+	case "-h", "--help":
+		fmt.Println("Usage: certifier ocsp <response|request|verify|check> [options]")
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown ocsp subcommand: %s\n", subcommand)
 		os.Exit(1)

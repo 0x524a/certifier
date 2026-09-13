@@ -68,16 +68,16 @@ The executable supports all library operations:
 
 ```
 .
-├── cmd/certifier/              # Executable
+├── cmd/certifier/              # Executable (includes integration tests)
 ├── pkg/
 │   ├── cert/                   # Core certificate operations
+│   ├── config/                 # YAML batch configuration loading
 │   ├── encoding/               # PEM/DER/PKCS12 encoding
 │   ├── validation/             # Certificate validation
 │   ├── crl/                    # CRL management
 │   └── ocsp/                   # OCSP support
 ├── internal/
 │   └── cli/                    # CLI command implementations
-├── test/                       # Integration tests
 ├── .github/workflows/          # GitHub Actions
 └── go.mod
 ```
@@ -151,7 +151,7 @@ certifier cert generate \
   --key-output server.key
 
 # Validate a certificate
-certifier cert validate --cert server.crt --ca-cert ca.crt
+certifier cert validate --cert server.crt --roots ca.crt
 
 # View certificate details
 certifier cert view --cert server.crt
@@ -234,7 +234,7 @@ Security is a top priority. See our [Security Policy](.github/SECURITY.md) for:
 - 🎲 Cryptographically secure random number generation
 - 🔍 Certificate chain validation
 - 📋 CRL and OCSP support
-- 🛡️ No external crypto dependencies
+- 🛡️ Built on Go's standard `crypto/x509` for certificate handling
 - 📌 Pinned GitHub Actions (supply chain security)
 
 ---
@@ -244,7 +244,7 @@ Security is a top priority. See our [Security Policy](.github/SECURITY.md) for:
 - **Test Coverage**: >85%
 - **Test Functions**: 226+
 - **Supported Platforms**: Linux, macOS, Windows (AMD64, ARM64)
-- **Go Version**: 1.22+
+- **Go Version**: 1.25+
 - **CI/CD**: GitHub Actions with SonarQube integration
 
 ---

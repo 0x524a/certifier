@@ -92,7 +92,11 @@ func ValidateCertificate(
 	}
 
 	// Check basic constraints if CA
-	if !certificate.IsCA && certificate.MaxPathLen >= 0 {
+	// Note: when the Basic Constraints extension is absent, crypto/x509 leaves
+	// MaxPathLen at its zero value (0) rather than -1, so BasicConstraintsValid
+	// must also be checked to avoid flagging every leaf certificate.
+	if !certificate.IsCA && certificate.BasicConstraintsValid &&
+		(certificate.MaxPathLen > 0 || certificate.MaxPathLenZero) {
 		result.Warnings = append(result.Warnings, "non-CA certificate has path length constraint")
 	}
 

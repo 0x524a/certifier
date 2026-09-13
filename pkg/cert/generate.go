@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"fmt"
 	"math/big"
 	"strings"
@@ -333,7 +334,7 @@ func setExtendedKeyUsage(template *x509.Certificate, certType CertificateType, i
 
 	// If custom OIDs are provided, use only those
 	if len(customOIDs) > 0 {
-		template.ExtraExtensions = append(template.ExtraExtensions, parseCustomOIDs(customOIDs)...)
+		template.UnknownExtKeyUsage = append(template.UnknownExtKeyUsage, parseCustomOIDs(customOIDs)...)
 		return
 	}
 
@@ -358,10 +359,13 @@ func setExtendedKeyUsage(template *x509.Certificate, certType CertificateType, i
 	}
 }
 
-// parseCustomOIDs converts OID strings to pkix.Extension objects
+// parseCustomOIDs converts OID strings to asn1.ObjectIdentifier values suitable
+// for x509.Certificate.UnknownExtKeyUsage, so they get embedded as values inside
+// the standard Extended Key Usage extension (OID 2.5.29.37) rather than written
+// out as their own separate, unrecognized extensions.
 // OID format: "2.5.29.37.0" for module signing, etc.
-func parseCustomOIDs(oidStrings []string) []pkix.Extension {
-	var extensions []pkix.Extension
+func parseCustomOIDs(oidStrings []string) []asn1.ObjectIdentifier {
+	var oids []asn1.ObjectIdentifier
 	for _, oidStr := range oidStrings {
 		// Create OID from string (split by dots and convert to int values)
 		parts := strings.Split(strings.TrimSpace(oidStr), ".")
@@ -369,7 +373,7 @@ func parseCustomOIDs(oidStrings []string) []pkix.Extension {
 			continue // Invalid OID format
 		}
 
-		oid := make([]int, 0, len(parts))
+		oid := make(asn1.ObjectIdentifier, 0, len(parts))
 		for _, part := range parts {
 			var val int
 			_, err := fmt.Sscanf(part, "%d", &val)
@@ -380,14 +384,10 @@ func parseCustomOIDs(oidStrings []string) []pkix.Extension {
 		}
 
 		if len(oid) >= 2 {
-			extensions = append(extensions, pkix.Extension{
-				Id:       oid,
-				Critical: false,
-				Value:    []byte{}, // Empty value for custom OIDs unless specified
-			})
+			oids = append(oids, oid)
 		}
 	}
-	return extensions
+	return oids
 }
 
 // setCAConstraints sets CA-specific path length constraints

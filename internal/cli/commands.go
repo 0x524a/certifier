@@ -740,12 +740,19 @@ func generateCertFromConfig(certCfg *config.CertificateConfigFile) error {
 
 // generateCSRFromConfig generates a CSR from config
 func generateCSRFromConfig(csrCfg *config.CertificateConfigFile) error {
+	// keyType is optional in the config file and defaults to rsa2048,
+	// mirroring CertificateConfigFile.ToCertificateConfig.
+	keyType := csrCfg.KeyType
+	if keyType == "" {
+		keyType = "rsa2048"
+	}
+
 	// Create CSR config
 	csrConfig := &cert.CSRConfig{
 		CommonName:   csrCfg.CommonName,
 		Country:      csrCfg.Country,
 		Organization: csrCfg.Organization,
-		KeyType:      cert.KeyType(csrCfg.KeyType),
+		KeyType:      cert.KeyType(keyType),
 		DNSNames:     csrCfg.DNSNames,
 	}
 

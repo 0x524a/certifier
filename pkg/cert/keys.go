@@ -28,8 +28,7 @@ func GeneratePrivateKey(keyType KeyType) (crypto.PrivateKey, error) {
 		_, privKey, err := ed25519.GenerateKey(rand.Reader)
 		return privKey, err
 	default:
-		// Default to RSA 2048
-		return rsa.GenerateKey(rand.Reader, 2048)
+		return nil, fmt.Errorf("unsupported key type: %q", keyType)
 	}
 }
 

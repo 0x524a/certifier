@@ -342,6 +342,18 @@ func TestFullWorkflow(t *testing.T) {
 		}
 	})
 
+	for _, helpFlag := range []string{"-h", "--help"} {
+		t.Run("crl "+helpFlag, func(t *testing.T) {
+			res := run(t, dir, "crl", helpFlag)
+			if res.exitCode != 0 {
+				t.Errorf("exit code = %d, want 0 (stdout=%q stderr=%q)", res.exitCode, res.stdout, res.stderr)
+			}
+			if !strings.Contains(res.stdout, "Usage: certifier crl") {
+				t.Errorf("stdout = %q, want usage message", res.stdout)
+			}
+		})
+	}
+
 	t.Run("ocsp request", func(t *testing.T) {
 		res := run(t, dir, "ocsp", "request", "--cert", "server.crt", "--ca-cert", "ca.crt", "--output", "req.der")
 		if res.exitCode != 0 {
@@ -399,4 +411,16 @@ func TestFullWorkflow(t *testing.T) {
 			t.Errorf("stderr = %q, want to contain %q", res.stderr, "Unknown ocsp subcommand")
 		}
 	})
+
+	for _, helpFlag := range []string{"-h", "--help"} {
+		t.Run("ocsp "+helpFlag, func(t *testing.T) {
+			res := run(t, dir, "ocsp", helpFlag)
+			if res.exitCode != 0 {
+				t.Errorf("exit code = %d, want 0 (stdout=%q stderr=%q)", res.exitCode, res.stdout, res.stderr)
+			}
+			if !strings.Contains(res.stdout, "Usage: certifier ocsp") {
+				t.Errorf("stdout = %q, want usage message", res.stdout)
+			}
+		})
+	}
 }
