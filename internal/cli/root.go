@@ -23,6 +23,7 @@ func RootCommand() *cliv3.Command {
 			crlCommand(),
 			ocspCommand(),
 		},
+		HideHelpCommand: true,
 		SkipFlagParsing: true,
 		Action: func(ctx context.Context, cmd *cliv3.Command) error {
 			args := cmd.Args().Slice()
