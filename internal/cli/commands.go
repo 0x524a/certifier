@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"crypto/x509"
-	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -448,76 +447,84 @@ func ViewCert(args []string) {
 	}
 }
 
+func csrGenerateCommand() *cliv3.Command {
+	var cn, country, org, dnsNames, keyType, csrOutput, keyOutput, configFile string
+	var nonInteractive bool
+
+	return &cliv3.Command{
+		Name:  "generate",
+		Usage: "Generate a CSR",
+		Flags: []cliv3.Flag{
+			&cliv3.StringFlag{Name: "cn", Usage: "Common Name (required)", Destination: &cn},
+			&cliv3.StringFlag{Name: "country", Value: "US", Usage: "Country", Destination: &country},
+			&cliv3.StringFlag{Name: "org", Usage: "Organization", Destination: &org},
+			&cliv3.StringFlag{Name: "dns", Usage: "DNS names (comma-separated)", Destination: &dnsNames},
+			&cliv3.StringFlag{Name: "key-type", Value: "rsa2048", Usage: "Key type", Destination: &keyType},
+			&cliv3.StringFlag{Name: "output", Value: "cert.csr", Usage: "Output CSR file", Destination: &csrOutput},
+			&cliv3.StringFlag{Name: "key-output", Value: "cert.key", Usage: "Output private key file", Destination: &keyOutput},
+			&cliv3.StringFlag{Name: "f", Usage: "Configuration file (YAML) for batch CSR generation", Destination: &configFile},
+			&cliv3.BoolFlag{Name: "non-interactive", Usage: "Enable non-interactive mode (requires --cn)", Destination: &nonInteractive},
+		},
+		Action: func(ctx context.Context, cmd *cliv3.Command) error {
+			if configFile != "" {
+				return GenerateCSRFromFileCmd(configFile)
+			}
+
+			if cn == "" && (nonInteractive || cn != "") {
+				return fmt.Errorf("common Name (--cn) is required for non-interactive mode")
+			}
+
+			var dnsNamesList []string
+			if dnsNames != "" {
+				dnsNamesList = strings.Split(dnsNames, ",")
+				for i, name := range dnsNamesList {
+					dnsNamesList[i] = strings.TrimSpace(name)
+				}
+			}
+
+			config := &cert.CSRConfig{
+				CommonName:   cn,
+				Country:      country,
+				Organization: org,
+				KeyType:      cert.KeyType(keyType),
+				DNSNames:     dnsNamesList,
+			}
+
+			csr, privateKey, err := cert.GenerateCSR(config)
+			if err != nil {
+				return fmt.Errorf("error generating CSR: %w", err)
+			}
+
+			csrPEM, err := encoding.EncodeCSRToPEM(csr)
+			if err != nil {
+				return fmt.Errorf("error encoding CSR: %w", err)
+			}
+
+			keyPEM, err := encoding.EncodePrivateKeyToPEM(privateKey)
+			if err != nil {
+				return fmt.Errorf("error encoding key: %w", err)
+			}
+
+			if err := os.WriteFile(csrOutput, csrPEM, 0644); err != nil {
+				return fmt.Errorf("error writing CSR file: %w", err)
+			}
+
+			if err := os.WriteFile(keyOutput, keyPEM, 0600); err != nil {
+				return fmt.Errorf("error writing key file: %w", err)
+			}
+
+			fmt.Printf("CSR generated successfully!\n")
+			fmt.Printf("CSR: %s\n", csrOutput)
+			fmt.Printf("Private Key: %s\n", keyOutput)
+
+			return nil
+		},
+	}
+}
+
 // GenerateCSRCmd generates a Certificate Signing Request and returns an error instead of exiting
 func GenerateCSRCmd(args []string) error {
-	cmd := flag.NewFlagSet("csr generate", flag.ContinueOnError)
-	cn := cmd.String("cn", "", "Common Name (required)")
-	country := cmd.String("country", "US", "Country")
-	org := cmd.String("org", "", "Organization")
-	dnsNames := cmd.String("dns", "", "DNS names (comma-separated)")
-	keyType := cmd.String("key-type", "rsa2048", "Key type")
-	csrOutput := cmd.String("output", "cert.csr", "Output CSR file")
-	keyOutput := cmd.String("key-output", "cert.key", "Output private key file")
-	configFile := cmd.String("f", "", "Configuration file (YAML) for batch CSR generation")
-	nonInteractive := cmd.Bool("non-interactive", false, "Enable non-interactive mode (requires --cn)")
-
-	if err := cmd.Parse(args); err != nil {
-		return fmt.Errorf("error parsing flags: %w", err)
-	}
-
-	// Handle file-based configuration
-	if *configFile != "" {
-		return GenerateCSRFromFileCmd(*configFile)
-	}
-
-	if *cn == "" && (*nonInteractive || *cn != "") {
-		return fmt.Errorf("common Name (--cn) is required for non-interactive mode")
-	}
-
-	var dnsNamesList []string
-	if *dnsNames != "" {
-		dnsNamesList = strings.Split(*dnsNames, ",")
-		for i, name := range dnsNamesList {
-			dnsNamesList[i] = strings.TrimSpace(name)
-		}
-	}
-
-	config := &cert.CSRConfig{
-		CommonName:   *cn,
-		Country:      *country,
-		Organization: *org,
-		KeyType:      cert.KeyType(*keyType),
-		DNSNames:     dnsNamesList,
-	}
-
-	csr, privateKey, err := cert.GenerateCSR(config)
-	if err != nil {
-		return fmt.Errorf("error generating CSR: %w", err)
-	}
-
-	csrPEM, err := encoding.EncodeCSRToPEM(csr)
-	if err != nil {
-		return fmt.Errorf("error encoding CSR: %w", err)
-	}
-
-	keyPEM, err := encoding.EncodePrivateKeyToPEM(privateKey)
-	if err != nil {
-		return fmt.Errorf("error encoding key: %w", err)
-	}
-
-	if err := os.WriteFile(*csrOutput, csrPEM, 0644); err != nil {
-		return fmt.Errorf("error writing CSR file: %w", err)
-	}
-
-	if err := os.WriteFile(*keyOutput, keyPEM, 0600); err != nil {
-		return fmt.Errorf("error writing key file: %w", err)
-	}
-
-	fmt.Printf("CSR generated successfully!\n")
-	fmt.Printf("CSR: %s\n", *csrOutput)
-	fmt.Printf("Private Key: %s\n", *keyOutput)
-
-	return nil
+	return runLeafCommand(csrGenerateCommand(), args)
 }
 
 // GenerateCSRFromFileCmd generates CSRs from a config file and returns an error
