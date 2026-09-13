@@ -194,49 +194,56 @@ func ValidateCert(args []string) {
 	}
 }
 
+func csrViewCommand() *cliv3.Command {
+	var csrFile string
+	return &cliv3.Command{
+		Name:  "view",
+		Usage: "View a CSR",
+		Flags: []cliv3.Flag{
+			&cliv3.StringFlag{Name: "csr", Usage: "CSR file (required)", Destination: &csrFile},
+		},
+		Action: func(ctx context.Context, cmd *cliv3.Command) error {
+			if csrFile == "" {
+				return fmt.Errorf("CSR file (--csr) is required")
+			}
+
+			csrPEM, err := os.ReadFile(csrFile)
+			if err != nil {
+				return fmt.Errorf("error reading CSR file: %w", err)
+			}
+
+			csr, err := encoding.DecodeCSRFromPEM(csrPEM)
+			if err != nil {
+				return fmt.Errorf("error decoding CSR: %w", err)
+			}
+
+			fmt.Println("CSR Details:")
+			fmt.Println("============")
+			fmt.Printf("Subject: %s\n", csr.Subject)
+
+			if len(csr.DNSNames) > 0 {
+				fmt.Printf("DNS Names: %v\n", csr.DNSNames)
+			}
+
+			if len(csr.EmailAddresses) > 0 {
+				fmt.Printf("Email Addresses: %v\n", csr.EmailAddresses)
+			}
+
+			if len(csr.IPAddresses) > 0 {
+				fmt.Printf("IP Addresses: %v\n", csr.IPAddresses)
+			}
+
+			fmt.Printf("Signature Algorithm: %s\n", csr.SignatureAlgorithm)
+			fmt.Printf("Public Key Algorithm: %s\n", csr.PublicKeyAlgorithm)
+
+			return nil
+		},
+	}
+}
+
 // ViewCSRCmd displays CSR details and returns an error instead of exiting
 func ViewCSRCmd(args []string) error {
-	cmd := flag.NewFlagSet("csr view", flag.ContinueOnError)
-	csrFile := cmd.String("csr", "", "CSR file (required)")
-
-	if err := cmd.Parse(args); err != nil {
-		return fmt.Errorf("error parsing flags: %w", err)
-	}
-
-	if *csrFile == "" {
-		return fmt.Errorf("CSR file (--csr) is required")
-	}
-
-	csrPEM, err := os.ReadFile(*csrFile)
-	if err != nil {
-		return fmt.Errorf("error reading CSR file: %w", err)
-	}
-
-	csr, err := encoding.DecodeCSRFromPEM(csrPEM)
-	if err != nil {
-		return fmt.Errorf("error decoding CSR: %w", err)
-	}
-
-	fmt.Println("CSR Details:")
-	fmt.Println("============")
-	fmt.Printf("Subject: %s\n", csr.Subject)
-
-	if len(csr.DNSNames) > 0 {
-		fmt.Printf("DNS Names: %v\n", csr.DNSNames)
-	}
-
-	if len(csr.EmailAddresses) > 0 {
-		fmt.Printf("Email Addresses: %v\n", csr.EmailAddresses)
-	}
-
-	if len(csr.IPAddresses) > 0 {
-		fmt.Printf("IP Addresses: %v\n", csr.IPAddresses)
-	}
-
-	fmt.Printf("Signature Algorithm: %s\n", csr.SignatureAlgorithm)
-	fmt.Printf("Public Key Algorithm: %s\n", csr.PublicKeyAlgorithm)
-
-	return nil
+	return runLeafCommand(csrViewCommand(), args)
 }
 
 // ViewCSR displays CSR details (wrapper that calls ViewCSRCmd and handles exit)
@@ -429,6 +436,22 @@ func certCommand() *cliv3.Command {
 				return GenerateCertCmd(args)
 			}
 			fmt.Fprintf(os.Stderr, "Unknown cert subcommand: %s\n", args[0])
+			return ErrSilent
+		},
+	}
+}
+
+func csrCommand() *cliv3.Command {
+	return &cliv3.Command{
+		Name:            "csr",
+		Commands:        []*cliv3.Command{csrGenerateCommand(), csrViewCommand()},
+		SkipFlagParsing: true,
+		Action: func(ctx context.Context, cmd *cliv3.Command) error {
+			args := cmd.Args().Slice()
+			if len(args) == 0 || isFlag(args[0]) {
+				return GenerateCSRCmd(args)
+			}
+			fmt.Fprintf(os.Stderr, "Unknown csr subcommand: %s\n", args[0])
 			return ErrSilent
 		},
 	}
