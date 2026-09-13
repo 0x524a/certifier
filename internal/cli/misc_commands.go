@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"crypto/x509"
-	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -254,78 +253,86 @@ func ViewCSR(args []string) {
 	}
 }
 
+func encodeCommand() *cliv3.Command {
+	var input, output, format, keyFile, password string
+
+	return &cliv3.Command{
+		Name:  "encode",
+		Usage: "Encode certificates/keys to different formats",
+		Flags: []cliv3.Flag{
+			&cliv3.StringFlag{Name: "input", Usage: "Input PEM certificate file (required)", Destination: &input},
+			&cliv3.StringFlag{Name: "output", Usage: "Output file (required)", Destination: &output},
+			&cliv3.StringFlag{Name: "format", Value: "der", Usage: "Output format (der or pkcs12)", Destination: &format},
+			&cliv3.StringFlag{Name: "key", Usage: "Private key PEM file (required for pkcs12)", Destination: &keyFile},
+			&cliv3.StringFlag{Name: "password", Usage: "Password (for pkcs12)", Destination: &password},
+		},
+		Action: func(ctx context.Context, cmd *cliv3.Command) error {
+			if input == "" {
+				return fmt.Errorf("input file (--input) is required")
+			}
+			if output == "" {
+				return fmt.Errorf("output file (--output) is required")
+			}
+
+			certPEM, err := os.ReadFile(input)
+			if err != nil {
+				return fmt.Errorf("error reading certificate file: %w", err)
+			}
+
+			certificate, err := encoding.DecodeCertificateFromPEM(certPEM)
+			if err != nil {
+				return fmt.Errorf("error decoding certificate: %w", err)
+			}
+
+			switch format {
+			case "der":
+				derBytes, err := encoding.EncodeCertificateToDER(certificate)
+				if err != nil {
+					return fmt.Errorf("error encoding certificate to DER: %w", err)
+				}
+
+				if err := os.WriteFile(output, derBytes, 0644); err != nil {
+					return fmt.Errorf("error writing output file: %w", err)
+				}
+			case "pkcs12":
+				if keyFile == "" {
+					return fmt.Errorf("private key file (--key) is required for pkcs12 format")
+				}
+
+				keyPEM, err := os.ReadFile(keyFile)
+				if err != nil {
+					return fmt.Errorf("error reading private key file: %w", err)
+				}
+
+				privateKey, err := encoding.DecodePrivateKeyFromPEM(keyPEM)
+				if err != nil {
+					return fmt.Errorf("error decoding private key: %w", err)
+				}
+
+				pfxData, err := encoding.EncodeToPKCS12(certificate, privateKey, password)
+				if err != nil {
+					return fmt.Errorf("error encoding to PKCS12: %w", err)
+				}
+
+				if err := os.WriteFile(output, pfxData, 0644); err != nil {
+					return fmt.Errorf("error writing output file: %w", err)
+				}
+			default:
+				return fmt.Errorf("unknown format: %s (expected der or pkcs12)", format)
+			}
+
+			fmt.Printf("Certificate encoded successfully!\n")
+			fmt.Printf("Format: %s\n", format)
+			fmt.Printf("Output: %s\n", output)
+
+			return nil
+		},
+	}
+}
+
 // EncodeCertCmd converts a PEM certificate to DER or PKCS12 and returns an error instead of exiting
 func EncodeCertCmd(args []string) error {
-	cmd := flag.NewFlagSet("encode", flag.ContinueOnError)
-	input := cmd.String("input", "", "Input PEM certificate file (required)")
-	output := cmd.String("output", "", "Output file (required)")
-	format := cmd.String("format", "der", "Output format (der or pkcs12)")
-	keyFile := cmd.String("key", "", "Private key PEM file (required for pkcs12)")
-	password := cmd.String("password", "", "Password (for pkcs12)")
-
-	if err := cmd.Parse(args); err != nil {
-		return fmt.Errorf("error parsing flags: %w", err)
-	}
-
-	if *input == "" {
-		return fmt.Errorf("input file (--input) is required")
-	}
-	if *output == "" {
-		return fmt.Errorf("output file (--output) is required")
-	}
-
-	certPEM, err := os.ReadFile(*input)
-	if err != nil {
-		return fmt.Errorf("error reading certificate file: %w", err)
-	}
-
-	certificate, err := encoding.DecodeCertificateFromPEM(certPEM)
-	if err != nil {
-		return fmt.Errorf("error decoding certificate: %w", err)
-	}
-
-	switch *format {
-	case "der":
-		derBytes, err := encoding.EncodeCertificateToDER(certificate)
-		if err != nil {
-			return fmt.Errorf("error encoding certificate to DER: %w", err)
-		}
-
-		if err := os.WriteFile(*output, derBytes, 0644); err != nil {
-			return fmt.Errorf("error writing output file: %w", err)
-		}
-	case "pkcs12":
-		if *keyFile == "" {
-			return fmt.Errorf("private key file (--key) is required for pkcs12 format")
-		}
-
-		keyPEM, err := os.ReadFile(*keyFile)
-		if err != nil {
-			return fmt.Errorf("error reading private key file: %w", err)
-		}
-
-		privateKey, err := encoding.DecodePrivateKeyFromPEM(keyPEM)
-		if err != nil {
-			return fmt.Errorf("error decoding private key: %w", err)
-		}
-
-		pfxData, err := encoding.EncodeToPKCS12(certificate, privateKey, *password)
-		if err != nil {
-			return fmt.Errorf("error encoding to PKCS12: %w", err)
-		}
-
-		if err := os.WriteFile(*output, pfxData, 0644); err != nil {
-			return fmt.Errorf("error writing output file: %w", err)
-		}
-	default:
-		return fmt.Errorf("unknown format: %s (expected der or pkcs12)", *format)
-	}
-
-	fmt.Printf("Certificate encoded successfully!\n")
-	fmt.Printf("Format: %s\n", *format)
-	fmt.Printf("Output: %s\n", *output)
-
-	return nil
+	return runLeafCommand(encodeCommand(), args)
 }
 
 // EncodeCert converts a PEM certificate to DER or PKCS12 (wrapper that calls EncodeCertCmd and handles exit)
@@ -336,80 +343,88 @@ func EncodeCert(args []string) {
 	}
 }
 
+func decodeCommand() *cliv3.Command {
+	var input, output, keyOutput, format, password string
+
+	return &cliv3.Command{
+		Name:  "decode",
+		Usage: "Decode certificates/keys from different formats",
+		Flags: []cliv3.Flag{
+			&cliv3.StringFlag{Name: "input", Usage: "Input file (required)", Destination: &input},
+			&cliv3.StringFlag{Name: "output", Usage: "Output certificate PEM file (required)", Destination: &output},
+			&cliv3.StringFlag{Name: "key-output", Usage: "Output private key PEM file (pkcs12 only)", Destination: &keyOutput},
+			&cliv3.StringFlag{Name: "format", Value: "der", Usage: "Input format (der or pkcs12)", Destination: &format},
+			&cliv3.StringFlag{Name: "password", Usage: "Password (for pkcs12)", Destination: &password},
+		},
+		Action: func(ctx context.Context, cmd *cliv3.Command) error {
+			if input == "" {
+				return fmt.Errorf("input file (--input) is required")
+			}
+			if output == "" {
+				return fmt.Errorf("output certificate file (--output) is required")
+			}
+
+			data, err := os.ReadFile(input)
+			if err != nil {
+				return fmt.Errorf("error reading input file: %w", err)
+			}
+
+			switch format {
+			case "der":
+				certificate, err := encoding.DecodeCertificateFromDER(data)
+				if err != nil {
+					return fmt.Errorf("error decoding certificate from DER: %w", err)
+				}
+
+				certPEM, err := encoding.EncodeCertificateToPEM(certificate)
+				if err != nil {
+					return fmt.Errorf("error encoding certificate to PEM: %w", err)
+				}
+
+				if err := os.WriteFile(output, certPEM, 0644); err != nil {
+					return fmt.Errorf("error writing certificate file: %w", err)
+				}
+			case "pkcs12":
+				certificate, privateKey, err := encoding.DecodeFromPKCS12(data, password)
+				if err != nil {
+					return fmt.Errorf("error decoding PKCS12: %w", err)
+				}
+
+				certPEM, err := encoding.EncodeCertificateToPEM(certificate)
+				if err != nil {
+					return fmt.Errorf("error encoding certificate to PEM: %w", err)
+				}
+
+				if err := os.WriteFile(output, certPEM, 0644); err != nil {
+					return fmt.Errorf("error writing certificate file: %w", err)
+				}
+
+				if keyOutput != "" {
+					keyPEM, err := encoding.EncodePrivateKeyToPEM(privateKey)
+					if err != nil {
+						return fmt.Errorf("error encoding private key to PEM: %w", err)
+					}
+
+					if err := os.WriteFile(keyOutput, keyPEM, 0600); err != nil {
+						return fmt.Errorf("error writing private key file: %w", err)
+					}
+				}
+			default:
+				return fmt.Errorf("unknown format: %s (expected der or pkcs12)", format)
+			}
+
+			fmt.Printf("Certificate decoded successfully!\n")
+			fmt.Printf("Format: %s\n", format)
+			fmt.Printf("Output: %s\n", output)
+
+			return nil
+		},
+	}
+}
+
 // DecodeCertCmd converts a DER or PKCS12 certificate back to PEM and returns an error instead of exiting
 func DecodeCertCmd(args []string) error {
-	cmd := flag.NewFlagSet("decode", flag.ContinueOnError)
-	input := cmd.String("input", "", "Input file (required)")
-	output := cmd.String("output", "", "Output certificate PEM file (required)")
-	keyOutput := cmd.String("key-output", "", "Output private key PEM file (pkcs12 only)")
-	format := cmd.String("format", "der", "Input format (der or pkcs12)")
-	password := cmd.String("password", "", "Password (for pkcs12)")
-
-	if err := cmd.Parse(args); err != nil {
-		return fmt.Errorf("error parsing flags: %w", err)
-	}
-
-	if *input == "" {
-		return fmt.Errorf("input file (--input) is required")
-	}
-	if *output == "" {
-		return fmt.Errorf("output certificate file (--output) is required")
-	}
-
-	data, err := os.ReadFile(*input)
-	if err != nil {
-		return fmt.Errorf("error reading input file: %w", err)
-	}
-
-	switch *format {
-	case "der":
-		certificate, err := encoding.DecodeCertificateFromDER(data)
-		if err != nil {
-			return fmt.Errorf("error decoding certificate from DER: %w", err)
-		}
-
-		certPEM, err := encoding.EncodeCertificateToPEM(certificate)
-		if err != nil {
-			return fmt.Errorf("error encoding certificate to PEM: %w", err)
-		}
-
-		if err := os.WriteFile(*output, certPEM, 0644); err != nil {
-			return fmt.Errorf("error writing certificate file: %w", err)
-		}
-	case "pkcs12":
-		certificate, privateKey, err := encoding.DecodeFromPKCS12(data, *password)
-		if err != nil {
-			return fmt.Errorf("error decoding PKCS12: %w", err)
-		}
-
-		certPEM, err := encoding.EncodeCertificateToPEM(certificate)
-		if err != nil {
-			return fmt.Errorf("error encoding certificate to PEM: %w", err)
-		}
-
-		if err := os.WriteFile(*output, certPEM, 0644); err != nil {
-			return fmt.Errorf("error writing certificate file: %w", err)
-		}
-
-		if *keyOutput != "" {
-			keyPEM, err := encoding.EncodePrivateKeyToPEM(privateKey)
-			if err != nil {
-				return fmt.Errorf("error encoding private key to PEM: %w", err)
-			}
-
-			if err := os.WriteFile(*keyOutput, keyPEM, 0600); err != nil {
-				return fmt.Errorf("error writing private key file: %w", err)
-			}
-		}
-	default:
-		return fmt.Errorf("unknown format: %s (expected der or pkcs12)", *format)
-	}
-
-	fmt.Printf("Certificate decoded successfully!\n")
-	fmt.Printf("Format: %s\n", *format)
-	fmt.Printf("Output: %s\n", *output)
-
-	return nil
+	return runLeafCommand(decodeCommand(), args)
 }
 
 // DecodeCert converts a DER or PKCS12 certificate back to PEM (wrapper that calls DecodeCertCmd and handles exit)
