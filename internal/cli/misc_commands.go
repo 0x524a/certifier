@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"crypto/x509"
 	"flag"
 	"fmt"
@@ -10,81 +11,91 @@ import (
 	"github.com/0x524a/certifier/pkg/cert"
 	"github.com/0x524a/certifier/pkg/encoding"
 	"github.com/0x524a/certifier/pkg/validation"
+	cliv3 "github.com/urfave/cli/v3"
 )
+
+func certSignCommand() *cliv3.Command {
+	var csrFile, caCertFile, caKeyFile, output string
+	var validityDays int
+
+	return &cliv3.Command{
+		Name:  "sign",
+		Usage: "Sign a certificate with CA",
+		Flags: []cliv3.Flag{
+			&cliv3.StringFlag{Name: "csr", Usage: "CSR PEM file (required)", Destination: &csrFile},
+			&cliv3.StringFlag{Name: "ca-cert", Usage: "CA certificate file (required)", Destination: &caCertFile},
+			&cliv3.StringFlag{Name: "ca-key", Usage: "CA private key file (required)", Destination: &caKeyFile},
+			&cliv3.StringFlag{Name: "output", Value: "signed.crt", Usage: "Output certificate file", Destination: &output},
+			&cliv3.IntFlag{Name: "validity", Value: 365, Usage: "Validity in days", Destination: &validityDays},
+		},
+		Action: func(ctx context.Context, cmd *cliv3.Command) error {
+			if csrFile == "" {
+				return fmt.Errorf("CSR file (--csr) is required")
+			}
+			if caCertFile == "" {
+				return fmt.Errorf("CA certificate file (--ca-cert) is required")
+			}
+			if caKeyFile == "" {
+				return fmt.Errorf("CA private key file (--ca-key) is required")
+			}
+
+			csrPEM, err := os.ReadFile(csrFile)
+			if err != nil {
+				return fmt.Errorf("error reading CSR file: %w", err)
+			}
+
+			csr, err := encoding.DecodeCSRFromPEM(csrPEM)
+			if err != nil {
+				return fmt.Errorf("error decoding CSR: %w", err)
+			}
+
+			caCertPEM, err := os.ReadFile(caCertFile)
+			if err != nil {
+				return fmt.Errorf("error reading CA certificate file: %w", err)
+			}
+
+			caCert, err := encoding.DecodeCertificateFromPEM(caCertPEM)
+			if err != nil {
+				return fmt.Errorf("error decoding CA certificate: %w", err)
+			}
+
+			caKeyPEM, err := os.ReadFile(caKeyFile)
+			if err != nil {
+				return fmt.Errorf("error reading CA private key file: %w", err)
+			}
+
+			caKey, err := encoding.DecodePrivateKeyFromPEM(caKeyPEM)
+			if err != nil {
+				return fmt.Errorf("error decoding CA private key: %w", err)
+			}
+
+			signedCert, err := cert.SignCSR(csr, caKey, caCert, validityDays)
+			if err != nil {
+				return fmt.Errorf("error signing CSR: %w", err)
+			}
+
+			signedPEM, err := encoding.EncodeCertificateToPEM(signedCert)
+			if err != nil {
+				return fmt.Errorf("error encoding signed certificate: %w", err)
+			}
+
+			if err := os.WriteFile(output, signedPEM, 0644); err != nil {
+				return fmt.Errorf("error writing certificate file: %w", err)
+			}
+
+			fmt.Printf("Certificate signed successfully!\n")
+			fmt.Printf("Serial Number: %s\n", signedCert.SerialNumber)
+			fmt.Printf("Subject: %s\n", signedCert.Subject)
+			fmt.Printf("Output: %s\n", output)
+
+			return nil
+		},
+	}
+}
 
 // SignCertCmd signs a CSR with a CA to produce a certificate and returns an error instead of exiting
 func SignCertCmd(args []string) error {
-	cmd := flag.NewFlagSet("sign", flag.ContinueOnError)
-	csrFile := cmd.String("csr", "", "CSR PEM file (required)")
-	caCertFile := cmd.String("ca-cert", "", "CA certificate file (required)")
-	caKeyFile := cmd.String("ca-key", "", "CA private key file (required)")
-	output := cmd.String("output", "signed.crt", "Output certificate file")
-	validityDays := cmd.Int("validity", 365, "Validity in days")
-
-	if err := cmd.Parse(args); err != nil {
-		return fmt.Errorf("error parsing flags: %w", err)
-	}
-
-	if *csrFile == "" {
-		return fmt.Errorf("CSR file (--csr) is required")
-	}
-	if *caCertFile == "" {
-		return fmt.Errorf("CA certificate file (--ca-cert) is required")
-	}
-	if *caKeyFile == "" {
-		return fmt.Errorf("CA private key file (--ca-key) is required")
-	}
-
-	csrPEM, err := os.ReadFile(*csrFile)
-	if err != nil {
-		return fmt.Errorf("error reading CSR file: %w", err)
-	}
-
-	csr, err := encoding.DecodeCSRFromPEM(csrPEM)
-	if err != nil {
-		return fmt.Errorf("error decoding CSR: %w", err)
-	}
-
-	caCertPEM, err := os.ReadFile(*caCertFile)
-	if err != nil {
-		return fmt.Errorf("error reading CA certificate file: %w", err)
-	}
-
-	caCert, err := encoding.DecodeCertificateFromPEM(caCertPEM)
-	if err != nil {
-		return fmt.Errorf("error decoding CA certificate: %w", err)
-	}
-
-	caKeyPEM, err := os.ReadFile(*caKeyFile)
-	if err != nil {
-		return fmt.Errorf("error reading CA private key file: %w", err)
-	}
-
-	caKey, err := encoding.DecodePrivateKeyFromPEM(caKeyPEM)
-	if err != nil {
-		return fmt.Errorf("error decoding CA private key: %w", err)
-	}
-
-	signedCert, err := cert.SignCSR(csr, caKey, caCert, *validityDays)
-	if err != nil {
-		return fmt.Errorf("error signing CSR: %w", err)
-	}
-
-	signedPEM, err := encoding.EncodeCertificateToPEM(signedCert)
-	if err != nil {
-		return fmt.Errorf("error encoding signed certificate: %w", err)
-	}
-
-	if err := os.WriteFile(*output, signedPEM, 0644); err != nil {
-		return fmt.Errorf("error writing certificate file: %w", err)
-	}
-
-	fmt.Printf("Certificate signed successfully!\n")
-	fmt.Printf("Serial Number: %s\n", signedCert.SerialNumber)
-	fmt.Printf("Subject: %s\n", signedCert.Subject)
-	fmt.Printf("Output: %s\n", *output)
-
-	return nil
+	return runLeafCommand(certSignCommand(), args)
 }
 
 // SignCert signs a CSR with a CA (wrapper that calls SignCertCmd and handles exit)
@@ -95,75 +106,84 @@ func SignCert(args []string) {
 	}
 }
 
+func certValidateCommand() *cliv3.Command {
+	var certFile, roots, intermediates, dnsName string
+	var checkExpiration, allowExpired bool
+
+	return &cliv3.Command{
+		Name:  "validate",
+		Usage: "Validate a certificate",
+		Flags: []cliv3.Flag{
+			&cliv3.StringFlag{Name: "cert", Usage: "Certificate file (required)", Destination: &certFile},
+			&cliv3.StringFlag{Name: "roots", Usage: "Root CA certificate files (comma-separated)", Destination: &roots},
+			&cliv3.StringFlag{Name: "intermediates", Usage: "Intermediate CA certificate files (comma-separated)", Destination: &intermediates},
+			&cliv3.StringFlag{Name: "dns", Usage: "Hostname to verify", Destination: &dnsName},
+			&cliv3.BoolFlag{Name: "check-expiration", Value: true, Usage: "Check certificate expiration", Destination: &checkExpiration},
+			&cliv3.BoolFlag{Name: "allow-expired", Usage: "Allow expired certificates", Destination: &allowExpired},
+		},
+		Action: func(ctx context.Context, cmd *cliv3.Command) error {
+			if certFile == "" {
+				return fmt.Errorf("certificate file (--cert) is required")
+			}
+
+			certPEM, err := os.ReadFile(certFile)
+			if err != nil {
+				return fmt.Errorf("error reading certificate file: %w", err)
+			}
+
+			certificate, err := encoding.DecodeCertificateFromPEM(certPEM)
+			if err != nil {
+				return fmt.Errorf("error decoding certificate: %w", err)
+			}
+
+			rootCerts, err := loadCertificateFiles(roots)
+			if err != nil {
+				return fmt.Errorf("error loading root CA certificates: %w", err)
+			}
+
+			intermediateCerts, err := loadCertificateFiles(intermediates)
+			if err != nil {
+				return fmt.Errorf("error loading intermediate CA certificates: %w", err)
+			}
+
+			config := &cert.ValidationConfig{
+				RootCAs:         rootCerts,
+				IntermediateCAs: intermediateCerts,
+				CheckExpiration: checkExpiration,
+				DNSName:         dnsName,
+				AllowExpired:    allowExpired,
+			}
+
+			result := validation.ValidateCertificate(certificate, config)
+
+			fmt.Println("Validation Result:")
+			fmt.Println("===================")
+			fmt.Printf("Valid: %v\n", result.Valid)
+			if len(result.Errors) > 0 {
+				fmt.Printf("Errors: %s\n", strings.Join(result.Errors, "; "))
+			}
+			if len(result.Warnings) > 0 {
+				fmt.Printf("Warnings: %s\n", strings.Join(result.Warnings, "; "))
+			}
+			fmt.Printf("Valid From: %s\n", result.ValidFrom)
+			fmt.Printf("Valid Until: %s\n", result.ValidUntil)
+			fmt.Printf("Expires In: %s\n", result.ExpiresIn)
+			fmt.Printf("Signature Algorithm: %s\n", result.SignatureAlgorithm)
+			fmt.Printf("Public Key Algorithm: %s\n", result.PublicKeyAlgorithm)
+			fmt.Printf("Key Size: %d\n", result.KeySize)
+
+			if !result.Valid {
+				return fmt.Errorf("certificate validation failed: %s", strings.Join(result.Errors, "; "))
+			}
+
+			return nil
+		},
+	}
+}
+
 // ValidateCertCmd validates a certificate and returns an error instead of exiting
 func ValidateCertCmd(args []string) error {
-	cmd := flag.NewFlagSet("validate", flag.ContinueOnError)
-	certFile := cmd.String("cert", "", "Certificate file (required)")
-	roots := cmd.String("roots", "", "Root CA certificate files (comma-separated)")
-	intermediates := cmd.String("intermediates", "", "Intermediate CA certificate files (comma-separated)")
-	dnsName := cmd.String("dns", "", "Hostname to verify")
-	checkExpiration := cmd.Bool("check-expiration", true, "Check certificate expiration")
-	allowExpired := cmd.Bool("allow-expired", false, "Allow expired certificates")
-
-	if err := cmd.Parse(args); err != nil {
-		return fmt.Errorf("error parsing flags: %w", err)
-	}
-
-	if *certFile == "" {
-		return fmt.Errorf("certificate file (--cert) is required")
-	}
-
-	certPEM, err := os.ReadFile(*certFile)
-	if err != nil {
-		return fmt.Errorf("error reading certificate file: %w", err)
-	}
-
-	certificate, err := encoding.DecodeCertificateFromPEM(certPEM)
-	if err != nil {
-		return fmt.Errorf("error decoding certificate: %w", err)
-	}
-
-	rootCerts, err := loadCertificateFiles(*roots)
-	if err != nil {
-		return fmt.Errorf("error loading root CA certificates: %w", err)
-	}
-
-	intermediateCerts, err := loadCertificateFiles(*intermediates)
-	if err != nil {
-		return fmt.Errorf("error loading intermediate CA certificates: %w", err)
-	}
-
-	config := &cert.ValidationConfig{
-		RootCAs:         rootCerts,
-		IntermediateCAs: intermediateCerts,
-		CheckExpiration: *checkExpiration,
-		DNSName:         *dnsName,
-		AllowExpired:    *allowExpired,
-	}
-
-	result := validation.ValidateCertificate(certificate, config)
-
-	fmt.Println("Validation Result:")
-	fmt.Println("===================")
-	fmt.Printf("Valid: %v\n", result.Valid)
-	if len(result.Errors) > 0 {
-		fmt.Printf("Errors: %s\n", strings.Join(result.Errors, "; "))
-	}
-	if len(result.Warnings) > 0 {
-		fmt.Printf("Warnings: %s\n", strings.Join(result.Warnings, "; "))
-	}
-	fmt.Printf("Valid From: %s\n", result.ValidFrom)
-	fmt.Printf("Valid Until: %s\n", result.ValidUntil)
-	fmt.Printf("Expires In: %s\n", result.ExpiresIn)
-	fmt.Printf("Signature Algorithm: %s\n", result.SignatureAlgorithm)
-	fmt.Printf("Public Key Algorithm: %s\n", result.PublicKeyAlgorithm)
-	fmt.Printf("Key Size: %d\n", result.KeySize)
-
-	if !result.Valid {
-		return fmt.Errorf("certificate validation failed: %s", strings.Join(result.Errors, "; "))
-	}
-
-	return nil
+	return runLeafCommand(certValidateCommand(), args)
 }
 
 // ValidateCert validates a certificate (wrapper that calls ValidateCertCmd and handles exit)
@@ -390,6 +410,27 @@ func DecodeCert(args []string) {
 	if err := DecodeCertCmd(args); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
+	}
+}
+
+func certCommand() *cliv3.Command {
+	return &cliv3.Command{
+		Name: "cert",
+		Commands: []*cliv3.Command{
+			certGenerateCommand(),
+			certSignCommand(),
+			certViewCommand(),
+			certValidateCommand(),
+		},
+		SkipFlagParsing: true,
+		Action: func(ctx context.Context, cmd *cliv3.Command) error {
+			args := cmd.Args().Slice()
+			if len(args) == 0 || isFlag(args[0]) {
+				return GenerateCertCmd(args)
+			}
+			fmt.Fprintf(os.Stderr, "Unknown cert subcommand: %s\n", args[0])
+			return ErrSilent
+		},
 	}
 }
 
