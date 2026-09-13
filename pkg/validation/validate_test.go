@@ -357,13 +357,14 @@ func TestValidateCertificateWithCustomTime(t *testing.T) {
 func TestValidateCertificateCAConstraints(t *testing.T) {
 	// Create a non-CA certificate with IsCA flag set (invalid)
 	nonCACert := &x509.Certificate{
-		SerialNumber:   big.NewInt(1),
-		Subject:        pkix.Name{CommonName: "test.com"},
-		NotBefore:      time.Now(),
-		NotAfter:       time.Now().AddDate(1, 0, 0),
-		IsCA:           false,
-		MaxPathLen:     0, // Invalid: non-CA with path length
-		MaxPathLenZero: true,
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "test.com"},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(1, 0, 0),
+		IsCA:                  false,
+		BasicConstraintsValid: true,
+		MaxPathLen:            0, // Invalid: non-CA with path length
+		MaxPathLenZero:        true,
 	}
 
 	result := ValidateCertificate(nonCACert, &cert.ValidationConfig{
@@ -740,15 +741,16 @@ func TestValidateCertificateWithCRLAndOCSP(t *testing.T) {
 // TestValidateCertificateNonCAWithPathLength tests non-CA cert with path length constraint
 func TestValidateCertificateNonCAWithPathLength(t *testing.T) {
 	certificate := &x509.Certificate{
-		SerialNumber:       big.NewInt(1),
-		Subject:            pkix.Name{CommonName: "test.com"},
-		Issuer:             pkix.Name{CommonName: "test.com"},
-		NotBefore:          time.Now(),
-		NotAfter:           time.Now().AddDate(1, 0, 0),
-		SignatureAlgorithm: x509.SHA256WithRSA,
-		PublicKeyAlgorithm: x509.RSA,
-		IsCA:               false,
-		MaxPathLen:         2,
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "test.com"},
+		Issuer:                pkix.Name{CommonName: "test.com"},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(1, 0, 0),
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		PublicKeyAlgorithm:    x509.RSA,
+		IsCA:                  false,
+		BasicConstraintsValid: true,
+		MaxPathLen:            2,
 	}
 
 	result := ValidateCertificate(certificate, &cert.ValidationConfig{
@@ -766,6 +768,37 @@ func TestValidateCertificateNonCAWithPathLength(t *testing.T) {
 
 	if !hasWarning {
 		t.Error("Expected warning about non-CA cert with path length constraint")
+	}
+}
+
+func TestValidateCertificateNonCAWithoutBasicConstraints(t *testing.T) {
+	// A typical leaf certificate has no Basic Constraints extension at all.
+	// crypto/x509.ParseCertificate leaves MaxPathLen at its zero value (0)
+	// in that case, rather than sentinel-ing it to -1, so a check that only
+	// looks at MaxPathLen >= 0 would incorrectly treat every such cert as
+	// having a path length constraint.
+	certificate := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "test.com"},
+		Issuer:                pkix.Name{CommonName: "test.com"},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(1, 0, 0),
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		PublicKeyAlgorithm:    x509.RSA,
+		IsCA:                  false,
+		BasicConstraintsValid: false,
+		MaxPathLen:            0,
+		MaxPathLenZero:        false,
+	}
+
+	result := ValidateCertificate(certificate, &cert.ValidationConfig{
+		CheckExpiration: false,
+	})
+
+	for _, warning := range result.Warnings {
+		if warning == "non-CA certificate has path length constraint" {
+			t.Errorf("unexpected warning for certificate without a Basic Constraints extension: %v", result.Warnings)
+		}
 	}
 }
 

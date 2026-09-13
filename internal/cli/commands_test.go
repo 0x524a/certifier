@@ -4313,9 +4313,9 @@ func TestGenerateCAWrapperMultipleErrors(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "Invalid key type defaults to rsa2048",
+			name:    "Invalid key type errors",
 			args:    []string{"-cn", "test.example.com", "-key-type", "invalid"},
-			wantErr: false, // Invalid key type defaults to rsa2048
+			wantErr: true, // Invalid key type must be rejected, not silently defaulted
 		},
 		{
 			name:    "Invalid validity flag parse error",
@@ -4393,9 +4393,9 @@ func TestGenerateCSRWrapperMultipleErrors(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "Invalid key type defaults",
+			name:    "Invalid key type errors",
 			args:    []string{"-cn", "test.example.com", "-key-type", "invalid"},
-			wantErr: false, // Invalid key type defaults to rsa2048
+			wantErr: true, // Invalid key type must be rejected, not silently defaulted
 		},
 	}
 
@@ -4852,6 +4852,43 @@ func TestGenerateCSRFromFileCmdWithValidConfig(t *testing.T) {
 	err := GenerateCSRFromFileCmd(configPath)
 	if err != nil {
 		t.Errorf("GenerateCSRFromFileCmd returned error: %v", err)
+	}
+}
+
+func TestGenerateCSRFromFileCmdWithOmittedKeyType(t *testing.T) {
+	// keyType is intentionally omitted - the config loader documents this as
+	// defaulting to rsa2048 (see CertificateConfigFile.ToCertificateConfig),
+	// and CSR batch entries should get the same default.
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "csr.yaml")
+	configContent := `certificates:
+  - commonName: no-keytype.example.com
+    organization: Test Org
+    country: US
+    isCSR: true
+    validity: 365
+    csrOutputFile: valid.csr
+    privateKeyOutputFile: valid.key
+`
+
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	outDir := filepath.Join(tmpDir, "output")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+
+	oldCwd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldCwd) }()
+	if err := os.Chdir(outDir); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	err := GenerateCSRFromFileCmd(configPath)
+	if err != nil {
+		t.Errorf("GenerateCSRFromFileCmd returned error for omitted keyType: %v", err)
 	}
 }
 

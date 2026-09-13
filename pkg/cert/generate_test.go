@@ -3,6 +3,8 @@ package cert
 import (
 	"crypto"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"net"
 	"testing"
 	"time"
@@ -705,6 +707,64 @@ func TestGenerateSelfSignedCertificateWithExtendedKeyUsage(t *testing.T) {
 				t.Error("Certificate should not be nil when error is nil")
 			}
 		})
+	}
+}
+
+func TestGenerateSelfSignedCertificateCustomOIDsEmbedInStandardEKUExtension(t *testing.T) {
+	// Custom EKU OIDs must be embedded as values inside the standard
+	// Extended Key Usage extension (OID 2.5.29.37), not written out as
+	// their own separate, unrecognized extensions using the OID itself
+	// as the extension identifier.
+	config := &CertificateConfig{
+		CommonName:           "module-signer.example.com",
+		Country:              "US",
+		Organization:         "Test Org",
+		KeyType:              "rsa2048",
+		Validity:             365,
+		ExtendedKeyUsageOIDs: []string{"2.5.29.37.0", "1.3.6.1.4.1.57453.1.1"},
+	}
+
+	certificate, _, err := GenerateSelfSignedCertificate(config)
+	if err != nil {
+		t.Fatalf("GenerateSelfSignedCertificate failed: %v", err)
+	}
+
+	want := []string{"2.5.29.37.0", "1.3.6.1.4.1.57453.1.1"}
+	const extKeyUsageOID = "2.5.29.37"
+
+	var ekuExtension *pkix.Extension
+	for i := range certificate.Extensions {
+		if certificate.Extensions[i].Id.String() == extKeyUsageOID {
+			ekuExtension = &certificate.Extensions[i]
+			continue
+		}
+		for _, oid := range want {
+			if certificate.Extensions[i].Id.String() == oid {
+				t.Errorf("custom OID %s was written as its own extension instead of inside the standard Extended Key Usage extension", oid)
+			}
+		}
+	}
+
+	if ekuExtension == nil {
+		t.Fatal("certificate has no standard Extended Key Usage extension (2.5.29.37)")
+	}
+
+	var rawOIDs []asn1.ObjectIdentifier
+	if _, err := asn1.Unmarshal(ekuExtension.Value, &rawOIDs); err != nil {
+		t.Fatalf("failed to parse Extended Key Usage extension value: %v", err)
+	}
+
+	for _, wantOID := range want {
+		found := false
+		for _, oid := range rawOIDs {
+			if oid.String() == wantOID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Extended Key Usage extension %v does not contain expected OID %s", rawOIDs, wantOID)
+		}
 	}
 }
 
