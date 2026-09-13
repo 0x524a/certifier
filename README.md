@@ -4,6 +4,7 @@
 [![License](https://img.shields.io/github/license/0x524a/certifier)](LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/0x524a/certifier)](https://goreportcard.com/report/github.com/0x524a/certifier)
 [![codecov](https://codecov.io/gh/0x524a/certifier/branch/main/graph/badge.svg)](https://codecov.io/gh/0x524a/certifier)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=0x524a_certifier&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=0x524a_certifier)
 [![CI](https://github.com/0x524a/certifier/actions/workflows/lint.yml/badge.svg)](https://github.com/0x524a/certifier/actions)
 [![Release](https://img.shields.io/github/v/release/0x524a/certifier)](https://github.com/0x524a/certifier/releases)
 [![GoDoc](https://godoc.org/github.com/0x524a/certifier?status.svg)](https://godoc.org/github.com/0x524a/certifier)
